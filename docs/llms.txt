@@ -1,0 +1,193 @@
+# llms.txt – Master-Leitfaden: Prompting für Stable Diffusion, Pony & Flux
+# Version 3.2 | Stand: Mai 2026
+# Volltext verfügbar in: llms-full.txt
+# Menschenlesbare Version: stable-diffusion-leitfaden-v3.md
+
+## ZWECK
+Dieser Leitfaden beschreibt, wie Prompts für verschiedene Stable-Diffusion-Architekturen
+korrekt formuliert werden. Er richtet sich an Nutzer und KI-Agenten, die Bilder mit
+lokalen oder cloudbasierten Diffusionsmodellen generieren.
+
+## KERNREGEL
+Prompts immer auf Englisch verfassen. Alle Modelle wurden überwiegend auf englischsprachigen
+Daten trainiert. Bei CLIP-Modellen (SD 1.5, SDXL, Pony, Illustrious) ist Deutsch weitgehend
+wirkungslos. Bei T5-Modellen (Flux, SD 3.5) funktioniert Englisch deutlich besser als Deutsch.
+
+## ARCHITEKTUR-ÜBERSICHT
+Jede Architektur erwartet einen anderen Prompt-Stil. Falsche Syntax = ignorierter Prompt.
+
+SD 1.5
+  Prompt-Stil: kommagetrennte Tags, absteigend nach Wichtigkeit
+  Negativer Prompt: Pflicht
+  CLIP Skip: 1 (Anime-Checkpoints: 2)
+  CFG Scale: 5.0–8.0
+  Sampler: DPM++ 2M Karras oder DPM++ SDE Karras
+  Steps: 20–35
+  Auflösung: 512x512 nativ, Hi-Res Fix für andere Formate
+  Qualitäts-Tags: masterpiece, highly detailed, 8k, award winning photography
+  Negativ-Pflicht: bad anatomy, deformed hands, extra limbs, blurry
+
+SDXL
+  Prompt-Stil: Hybrid – kurze Sätze + beschreibende Tags
+  Negativer Prompt: Empfohlen
+  CLIP Skip: 1–2 (je nach Checkpoint)
+  CFG Scale: 5.0–8.0
+  Sampler: DPM++ 2M Karras oder DPM++ SDE Karras
+  Steps: 20–35
+  Auflösung: 1024x1024 nativ, Hi-Res Fix für andere Formate
+  Qualitäts-Tags: keine reinen Zahlen-Tags (kein "8k")
+  Negativ-Pflicht: bad anatomy, deformed hands, blurry
+
+PONY V6 (SDXL-Basis)
+  Prompt-Stil: Danbooru-Tags, Score-Kette zwingend am Anfang
+  Score-Pflicht-Präfix: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up
+  Source-Tag: source_anime / source_cartoon / source_furry / source_pony
+  Safety-Tag: rating_safe (Pflicht für SFW)
+  Negativer Prompt: score_3_up, score_2_up, score_1_up, rating_explicit, rating_questionable
+  CLIP Skip: 2
+  CFG Scale: 5.0–7.0
+  Sampler: Euler a oder DPM++ 2M Karras
+  Steps: 20–35
+  Auflösung: 1024x1024
+
+PONY V7 (AuraFlow-Basis)
+  Prompt-Stil: Danbooru-Tags, Style-Cluster statt Score-Kette
+  Stil-Cluster: style_cluster_1324 (2D-Anime) oder style_cluster_1679 (3D/semi-realistisch)
+  Safety-Tag: rating_safe (Pflicht für SFW)
+  CLIP Skip: 2
+  Auflösung: 1024x1024
+
+ILLUSTRIOUS XL / NOOBAI-XL (SDXL-Basis)
+  Prompt-Stil: Qualitäts-Tags + Danbooru-Tags
+  Qualitäts-Präfix: masterpiece, best quality, amazing quality, very aesthetic, absurdres
+  NoobAI-XL zusätzlich: newest am Anfang
+  Negativer Prompt: Empfohlen – lowres, bad anatomy, bad hands, extra digits, worst quality, jpeg artifacts, low quality, watermark, blurry
+  CLIP Skip: 2
+  CFG Scale: 4.0–7.0
+  Sampler: Euler a oder DPM++ 2M Karras
+  Steps: 20–35
+  Auflösung: 1024x1024
+  Besonderheit: kennt Danbooru-Charaktere und Künstlerstile nativ (kein LoRA nötig)
+
+FLUX.1 / FLUX 2 / SD 3.5
+  Prompt-Stil: natürliche Sprache / Prosa (vollständige Sätze)
+  Negativer Prompt: LEER LASSEN (verwirrt T5-Encoder)
+  KEINE Qualitäts-Tags wie 8k, masterpiece (werden als physischer Text gerendert)
+  CFG Scale: 1.0 (klassisches CFG deaktiviert)
+  Guidance Scale: 3.5–4.0 (Flux Dev/Flex); 0–1.0 (Flux Schnell)
+  Sampler: Euler mit Scheduler Simple oder Beta
+  Steps: 20–30 (Flux Dev); 4–8 (Flux Schnell)
+  Auflösung: beliebig (Resolution Bucketing – kein Hi-Res Fix nötig)
+  Token-Limit: 512+ Tokens
+
+## KAPITELINDEX (llms-full.txt)
+
+Kapitel 1 – Modell-Basen im Schnellüberblick
+  Übersichtstabelle: Architektur, Prompt-Stil, Negative Prompts, Auflösung, Hardware
+
+Kapitel 2 – Checkpoints vs. Basismodelle
+  Unterschied Basismodell / Fine-Tune / Merge; Bezugsquellen Civitai & Hugging Face;
+  Sicherheitshinweis SafeTensors vs. .ckpt
+
+Kapitel 3 – Sprache: Immer Englisch
+  Warum Englisch bei CLIP-Modellen Pflicht ist; Einschränkungen bei T5-Modellen
+
+Kapitel 4 – Master-Schablonen für Prompts
+  Schablone A: Tag-Struktur für SD 1.5 & SDXL (CLIP-Prinzip, Aufbau, Beispiel)
+  Schablone B: Prosa-Struktur für Flux & SD 3.5 (T5-Prinzip, Beispiel)
+  Abschnitt C: Token-Grenze (75 Tokens CLIP, 512+ Tokens T5)
+
+Kapitel 5 – Praxis-Experiment: Ein Motiv, alle Modelle
+  Fertiger Prompt + Negativer Prompt für: SD 1.5, SDXL, Illustrious/NoobAI, Pony V6,
+  Pony V7, Flux – jeweils mit Entscheidungshilfe wann welches Modell sinnvoll ist
+
+Kapitel 6 – Sonderfall Pony Diffusion (V6 & V7)
+  GIGO-Prinzip; Warum die Score-Kette nötig ist; Token-Bug V6; Source-Tags;
+  Safety Ratings; Stil-Cluster V7
+
+Kapitel 7 – Sonderfall Illustrious XL & NoobAI-XL
+  Vergleich zu Pony; Qualitäts-Präfix; Negativer Prompt; Künstlerstile; CLIP Skip
+
+Kapitel 8 – Settings
+  A: VAE (welcher VAE für welche Architektur)
+  B: CFG Scale (Werte pro Architektur)
+  C: Sampling Steps
+  D: Sampler & Schedulers
+  E: Auflösung & Hi-Res Fix (Doppelkopf-Problem)
+  F: Seed-Kontrolle (fester Seed, Variation Strength)
+  G: CLIP Skip (Werte pro Architektur, wo in A1111/ComfyUI)
+
+Kapitel 9 – LoRAs & Embeddings
+  A: LoRA – Syntax pro UI (A1111, ComfyUI, Fooocus); Trigger-Words
+  B: Wie viele LoRAs gleichzeitig? (1=ideal, 3=Obergrenze, 4+=unvorhersehbar)
+  C: Embeddings / Negative Embeddings (easynegative, bad-hands-5)
+
+Kapitel 10 – Fortgeschrittene Techniken
+  A: Img2Img (Denoising-Tabelle, Detektiv-Beispiel)
+  B: Inpainting (Only Masked, Prompt-Regel)
+  C: Outpainting (Denoising 0.6–0.8)
+  D: ControlNet (OpenPose, Canny, Depth)
+  E: Prompt-Gewichtung (nur SD 1.5 & SDXL, max 1.4)
+  F: Wildcards (Syntax, UI-Kompatibilität)
+  G: Regional Prompting (Prompt-Bleeding verhindern)
+  H: Profi-Workflow – Initial-Generierung, Detail-Fixing (ADetailer), Charakter-Konsistenz
+     Methode 0: Prompt+Seed (Einstieg)
+     Methode A: Native Multi-Reference (Flux 2)
+     Methode B: IP-Adapter & PuLID
+     Methode C: ReActor (Face-Swap, nur fiktive Charaktere)
+     Methode D: Eigenes Charakter-LoRA (Königsweg, Kohya SS / Fooocus)
+
+Kapitel 11 – Szenen, Aktionen & Umgebungen
+  A: CLIP vs. T5 beim Beschreiben von Szenen (Verben vs. visuelle Zustände)
+  B: Umgebungen aufbauen (Ort, Wetter, Licht, Kamera) mit Beispielen Wald/Regen
+  C: Aktionen & Posen präzise beschreiben (Tabelle: schwach vs. stark)
+  D: Tageszeit & Lichtstimmung (goldene Stunde, Mittag, blaue Stunde, Nacht, bewölkt)
+
+Kapitel 12 – Kleidung & Accessoires
+  A: Materialien präzise benennen (Tabelle: vage vs. präzise)
+  B: Kleidung schichtenweise beschreiben (innen nach außen)
+  C: Muster & Prints (einfache vs. komplexe Muster, CLIP vs. Flux)
+  D: Accessoires & Details (Gewichtung, räumliche Angaben, eigene Sätze bei Flux)
+  E: Kleidung und Kontext (kognitive Dissonanz, Kontraste explizit benennen)
+  F: Wildcards für Outfit-Variation (Outfit-Ebenen randomisieren, Charakter-Block fest)
+
+Kapitel 13 – Mehrere Personen
+  A: Das Vermischungs-Problem bei CLIP-Modellen (Eigenschaften-Swap)
+  B: Regional Prompting für zwei Personen (globale Ebene + Regionen)
+  C: Anzahl der Personen klar benennen (Count-Tags: 1girl, 2people, etc.)
+  D: Interaktionen zwischen Personen (räumliche Angaben, Flux-Vorteil)
+  E: Mehr als zwei Personen (Gruppe, Hauptperson+Hintergrund, Compositing)
+
+Kapitel 14 – Kameraeinstellungen
+  A: Standard-Set (35mm, eye level, medium shot, slight DOF) – sicher für Einsteiger
+  B: Bildausschnitt/Framing (extreme close-up bis establishing shot, Tabelle)
+  C: Kameraperspektive & Winkel (eye level, low/high angle, bird's eye, dutch angle)
+  D: Brennweite & optische Wirkung (14mm bis 200mm+, Kompression, Verzerrung, Tabelle)
+  E: Tiefenschärfe & Bokeh (shallow/deep DOF, f-Werte, tilt-shift)
+  F: Filmische Stile & Fotografie-Referenzen (35mm film, Kodak Portra, Fujifilm Velvia, etc.)
+
+Kapitel 15 – Stilangaben & Künstler-Referenzen
+  A: Medium & Technik (fotorealistisch, gemalt, digital, illustrativ)
+  B: Kunststile & Epochen (art nouveau, film noir, cyberpunk, ukiyo-e, etc.)
+  C: Künstler-Referenzen (Illustration, Fotografie, historische Malerei; ethischer Hinweis)
+  D: Stimmungs- & Atmosphäre-Tags (ethereal, melancholic, gritty, surreal, etc.)
+  E: Stilangaben pro Architektur (SD 1.5, Pony, Illustrious, Flux)
+
+Kapitel 16 – Negative Prompts: Strategie statt Cargo-Cult
+  A: Wann braucht man Negative Prompts? (Tabelle pro Architektur)
+  B: Die drei sinnvollen Kategorien (Anatomie, Qualität, Stil-Ausschlüsse)
+  C: Was meistens Cargo-Cult ist (ugly, duplicate, lowres, bad art)
+  D: Negative Embeddings als Abkürzung (easynegative, bad-hands-5, FastNegativeV2)
+  E: Minimaler Standard-Negative Prompt (fotorealistisch + Anime)
+
+Kapitel 17 – Troubleshooting
+  Schwarzes Bild (VAE), VRAM-Fehler, Doppelköpfe, ignorierter Prompt,
+  entstellte Gesichter/Hände, matschige Farben, Flux rendert Text, LoRA-Konflikte
+
+Kapitel 18 – Glossar
+  Definitionen: Batch Size, Checkpoint, CLIP, CLIP Skip, CFG Scale, ControlNet,
+  Danbooru, Denoising Strength, Embedding, Fine-Tune, Hi-Res Fix, Img2Img,
+  Latent Space, LoRA, Merge, Negativer Prompt, NoobAI-XL, Resolution Bucketing,
+  SafeTensors, Sampler/Scheduler, Seed, T5-XXL, Token, VAE, VRAM
+
+Changelog – Versionshistorie 1.0 / 2.0 / 3.0

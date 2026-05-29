@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDXL Prompt Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f11;
+  --surface:#18181c;
+  --card:#1e1e24;
+  --border:#2a2a32;
+  --border-mid:#3a3a46;
+  --ink:#e8e8ee;
+  --muted:#8888a0;
+  --hint:#55556a;
+  --accent:#2ecc8a;
+  --accent-dark:#1a7a50;
+  --accent-dim:rgba(46,204,138,.12);
+  --danger:#e05555;
+  --mono:'DM Mono',monospace;
+  --display:'Syne',sans-serif;
+}
+body{font-family:var(--display);background:var(--bg);color:var(--ink);height:100vh;overflow:hidden}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:260px 1fr;grid-template-rows:56px 1fr;height:calc(100vh - 28px);overflow:hidden}
+.topbar{grid-column:1/-1;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1.5rem;gap:1rem}
+.topbar-title{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.topbar-sub{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* Sidebar */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-section{padding:1rem;border-bottom:1px solid var(--border)}
+.sidebar-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--hint);margin-bottom:.75rem}
+.character-list{flex:1;overflow-y:auto;padding:.5rem}
+.char-item{padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s;border:1px solid transparent;margin-bottom:4px}
+.char-item:hover{background:var(--card);border-color:var(--border)}
+.char-item.active{background:var(--accent-dim);border-color:var(--accent-dark)}
+.char-name{font-size:13px;font-weight:600}
+.char-meta{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.char-actions{display:flex;gap:4px;margin-top:6px}
+.char-btn{padding:2px 8px;font-size:11px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;font-family:var(--display)}
+.char-btn:hover{border-color:var(--accent);color:var(--accent)}
+.char-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+
+/* Main */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.tab{padding:12px 20px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;letter-spacing:-.01em}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover:not(.active){color:var(--ink)}
+.tab-content{display:none;padding:1.5rem;flex:1;overflow-y:auto}
+.tab-content.active{display:block}
+
+/* Provider bar (inside settings panel) */
+.provider-label{font-size:11px;color:var(--muted);font-family:var(--mono);white-space:nowrap;margin-bottom:4px;display:block}
+.provider-select{width:100%;background:var(--surface);border:1px solid var(--border-mid);border-radius:6px;color:var(--ink);font-family:var(--display);font-size:13px;padding:6px 10px;outline:none;margin-bottom:8px}
+.provider-select:focus{border-color:var(--accent)}
+.model-select{width:100%;background:var(--surface);border:1px solid var(--border-mid);border-radius:6px;color:var(--ink);font-family:var(--display);font-size:13px;padding:6px 10px;outline:none}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--hint)}
+
+/* Provider pill (topbar) */
+.provider-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;border:1px solid var(--border-mid);background:var(--card);color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s;white-space:nowrap}
+.provider-pill:hover{border-color:var(--accent);color:var(--ink)}
+
+/* Topbar icon button */
+.icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* User avatar */
+.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent-dark);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);cursor:pointer;position:relative;flex-shrink:0}
+.user-menu{position:absolute;top:38px;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:160px;z-index:850;display:none}
+.user-menu.open{display:block}
+.user-menu-item{padding:7px 12px;border-radius:6px;font-size:12px;color:var(--muted);cursor:default;display:flex;align-items:center;gap:8px}
+.user-menu-item i{width:14px;text-align:center}
+.user-menu-soon{font-size:9px;font-family:var(--mono);color:var(--hint);margin-left:auto}
+
+/* Settings panel */
+#settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:810;display:none}
+#settings-overlay.open{display:block}
+#settings-panel{position:fixed;top:0;right:0;bottom:0;width:400px;background:var(--surface);border-left:1px solid var(--border);z-index:820;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column}
+#settings-panel.open{transform:translateX(0)}
+.sp-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:1}
+.sp-title{font-size:14px;font-weight:700}
+.sp-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+.sp-close:hover{border-color:var(--danger);color:var(--danger)}
+.sp-body{padding:1.25rem;flex:1}
+.sp-section{margin-bottom:1.5rem}
+
+/* User profile card (placeholder) */
+.user-profile-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.user-profile-avatar{width:40px;height:40px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent-dark);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent);flex-shrink:0}
+.user-profile-info{flex:1}
+.user-profile-name{font-size:13px;font-weight:600}
+.user-profile-role{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.status-dot.ok{background:var(--accent)}
+.status-dot.fail{background:var(--danger)}
+
+/* Form */
+.section-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:1.25rem 0 .75rem;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-grid.three{grid-template-columns:1fr 1fr 1fr}
+.form-grid.four{grid-template-columns:1fr 1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.full{grid-column:1/-1}
+label{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+select,input[type=text]{width:100%;padding:7px 10px;border:1px solid var(--border-mid);border-radius:7px;background:var(--surface);color:var(--ink);font-family:var(--display);font-size:13px;appearance:none;outline:none;transition:border-color .15s}
+select:focus,input[type=text]:focus{border-color:var(--accent)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+/* Tags */
+.tags-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tag{padding:4px 11px;border-radius:16px;border:1px solid var(--border-mid);font-size:12px;cursor:pointer;transition:all .15s;background:var(--surface);color:var(--muted);user-select:none}
+.tag:hover{border-color:var(--accent);color:var(--accent)}
+.tag.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-dark)}
+
+/* Buttons */
+.btn{padding:8px 16px;border-radius:8px;border:none;font-family:var(--display);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:-.01em}
+.btn-primary{background:var(--accent);color:#0f0f11}
+.btn-primary:hover{opacity:.88}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-secondary{background:transparent;color:var(--muted);border:1px solid var(--border-mid)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.btn-danger:hover{background:rgba(224,85,85,.1)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:1.5rem}
+
+/* Spinner */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(15,15,17,.3);border-top-color:#0f0f11;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Result */
+.result-section{margin-top:1.5rem}
+.zone-card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.zone-header{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.zone-name{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.zone-badge{font-size:10px;padding:2px 8px;border-radius:8px;background:var(--accent-dim);color:var(--accent);font-weight:600;font-family:var(--mono)}
+.zone-body{padding:14px}
+.prompt-text{font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--ink);white-space:pre-wrap;margin-bottom:12px;background:var(--surface);padding:10px 12px;border-radius:7px;border:1px solid var(--border)}
+.token-list{display:flex;flex-direction:column;gap:7px}
+.token-item{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}
+.token-name{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500;white-space:nowrap;padding-top:1px}
+.token-desc{font-size:12px;color:var(--muted);line-height:1.6}
+.neg-card{background:rgba(224,85,85,.06);border:1px solid rgba(224,85,85,.2);border-radius:12px;padding:14px;margin-bottom:12px}
+.neg-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--danger);margin-bottom:8px;opacity:.7}
+
+/* Copy buttons */
+.copy-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:1rem}
+.copy-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--border-mid);border-radius:6px;background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* History */
+.history-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.history-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.history-name{font-size:13px;font-weight:600}
+.history-badge{font-size:10px;padding:2px 8px;border-radius:6px;background:var(--accent-dim);color:var(--accent);font-family:var(--mono)}
+.history-date{font-size:11px;color:var(--hint);font-family:var(--mono);margin-left:auto}
+.history-prompt{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;max-height:60px;overflow:hidden;mask-image:linear-gradient(to bottom,var(--ink) 50%,transparent)}
+.history-actions{display:flex;gap:6px;margin-top:8px}
+
+/* Notification */
+.toast{position:fixed;bottom:2.5rem;right:1.5rem;background:var(--accent);color:#0f0f11;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* Error */
+.error-msg{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--danger);margin-top:1rem;display:none}
+
+/* Status bar (fixed bottom) */
+#statusbar{position:fixed;bottom:0;left:0;right:0;height:28px;background:#111116;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;font-size:11px;font-family:var(--mono);color:var(--hint);z-index:900}
+#statusbar .sb-indicator{width:7px;height:7px;border-radius:50%;background:var(--hint);flex-shrink:0;transition:background .3s}
+#statusbar.running .sb-indicator{background:var(--accent);animation:sb-pulse 1s ease-in-out infinite}
+#statusbar.done .sb-indicator{background:var(--accent)}
+#statusbar.error .sb-indicator{background:var(--danger)}
+#statusbar .sb-msg{flex:1;color:var(--muted)}
+#statusbar.running .sb-msg{color:var(--ink)}
+#statusbar.done .sb-msg{color:var(--accent)}
+#statusbar.error .sb-msg{color:var(--danger)}
+#statusbar .sb-elapsed{color:var(--hint)}
+@keyframes sb-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Thinking panel */
+#thinking-panel{display:none;margin-top:1rem;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+#thinking-panel.visible{display:block}
+.thinking-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface);cursor:pointer;user-select:none}
+.thinking-header-left{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.thinking-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:sb-pulse 1s ease-in-out infinite;flex-shrink:0}
+#thinking-panel.done .thinking-dot{animation:none;background:var(--hint)}
+.thinking-toggle{font-size:10px;color:var(--hint);font-family:var(--mono)}
+.thinking-body{max-height:220px;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--hint);line-height:1.8;white-space:pre-wrap;word-break:break-word}
+.thinking-body.collapsed{display:none}
+
+/* History error entries */
+.history-item.error{border-color:rgba(224,85,85,.35);background:rgba(224,85,85,.04)}
+.history-error-msg{font-family:var(--mono);font-size:11px;color:var(--danger);margin-top:6px;opacity:.85}
+
+/* Language switcher */
+.lang-btn{padding:3px 8px;font-size:11px;border-radius:4px;border:1px solid var(--border-mid);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--mono);transition:all .15s}
+.lang-btn.active{border-color:var(--accent);color:var(--accent)}
+
+/* Settings */
+.settings-row{display:flex;gap:10px;align-items:flex-end;margin-bottom:1rem}
+.settings-row input{flex:1}
+.info-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:1rem}
+.info-box code{font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:4px}
+/* ── Character Sheet ─────────────────────────────────────── */
+.sheet-summary-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px}
+.sheet-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:200px;color:var(--muted);font-size:13px}
+.sheet-toggle{display:flex;gap:4px}
+.sheet-toggle-btn{padding:3px 10px;border:1px solid var(--border-mid);border-radius:6px;background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s}
+.sheet-toggle-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.iter-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:border-color .15s}
+.iter-card:hover{border-color:var(--border-mid)}
+.iter-header{display:flex;align-items:center;gap:8px;padding:10px 14px;flex-wrap:wrap}
+.iter-version{background:var(--accent);color:#000;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;font-family:var(--mono)}
+.iter-meta-chip{background:var(--accent-dim);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:10px;font-family:var(--mono)}
+.iter-model-name{font-size:11px;color:var(--hint);font-family:var(--mono)}
+.iter-diff{padding:0 14px 8px;font-size:11px;color:var(--muted)}
+.diff-chip{display:inline-block;background:var(--surface);border:1px solid var(--border-mid);border-radius:4px;padding:1px 6px;font-size:10px;font-family:var(--mono);margin:1px 2px;color:var(--ink)}
+.iter-prompt-preview{padding:7px 12px;font-size:11px;font-family:var(--mono);color:var(--hint);background:var(--bg);margin:0 14px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid var(--border);transition:all .15s}
+.iter-prompt-preview:hover{color:var(--ink);border-color:var(--border-mid)}
+.iter-prompt-preview.expanded{white-space:pre-wrap;overflow:visible;text-overflow:unset}
+.iter-image-area{padding:0 14px 12px;display:flex;align-items:flex-start;gap:10px}
+.iter-thumb{max-width:140px;max-height:140px;border-radius:8px;object-fit:cover;border:1px solid var(--border);cursor:pointer}
+.iter-action-btn{padding:4px 10px;border:1px solid var(--border-mid);border-radius:6px;background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.iter-action-btn:hover{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">SDXL Prompt Generator</div>
+      <div class="topbar-sub">Phase 1 · Character-Definition</div>
+    </div>
+    <div class="topbar-right">
+      <button class="provider-pill" id="provider-pill" onclick="openSettings()" title="Anbieter wechseln">
+        <span class="status-dot unknown" id="provider-dot"></span>
+        <span id="provider-pill-text">–</span>
+      </button>
+      <button class="lang-btn" id="lang-de" onclick="setLang('de')">DE</button>
+      <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
+      <button class="icon-btn" onclick="openSettings()" title="Einstellungen"><i class="fa fa-gear"></i></button>
+      <div style="position:relative">
+        <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()" title="Profil">U</div>
+        <div class="user-menu" id="user-menu">
+          <div class="user-menu-item"><i class="fa fa-user"></i>Profil<span class="user-menu-soon">bald</span></div>
+          <div class="user-menu-item"><i class="fa fa-palette"></i>Theme<span class="user-menu-soon">bald</span></div>
+          <div class="user-menu-item"><i class="fa fa-right-from-bracket"></i>Logout<span class="user-menu-soon">bald</span></div>
+        </div>
+      </div>
+      <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px" onclick="newCharacter()">
+        <i class="fa fa-plus" style="margin-right:5px"></i><span data-t="new">Neu</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Characters</div>
+      <button class="btn btn-primary" style="width:100%;font-size:12px;padding:7px" onclick="newCharacter()">
+        <i class="fa fa-plus" style="margin-right:5px"></i>Neuer Character
+      </button>
+    </div>
+    <div class="character-list" id="character-list">
+      <div style="font-size:12px;color:var(--hint);text-align:center;padding:2rem 1rem">
+        Noch keine Characters.<br>Erstelle deinen ersten.
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('generator')" data-t="tab.generator">Generator</div>
+      <div class="tab" onclick="switchTab('sheet')" data-t="tab.sheet">Charakter</div>
+    </div>
+
+    <!-- Generator Tab -->
+    <div class="tab-content active" id="tab-generator">
+
+      <!-- Character Name -->
+      <div class="form-grid" style="margin-bottom:0">
+        <div class="field full">
+          <label>Character Name</label>
+          <input type="text" id="char-name" placeholder="z.B. Lyra, Marcus, Protagonist..." value="Unbenannter Character">
+        </div>
+      </div>
+
+      <!-- Stable Diffusion Setup -->
+      <div class="section-label">Stable Diffusion Setup</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Modell-Familie</label>
+          <select id="model-family" onchange="onModelFamilyChange()">
+            <option value="sdxl">SDXL</option>
+            <option value="pony_v6">Pony V6</option>
+            <option value="illustrious">Illustrious XL</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tool</label>
+          <select id="sd-tool">
+            <option value="ComfyUI">ComfyUI</option>
+            <option value="Automatic1111">Automatic1111 (A1111)</option>
+            <option value="InvokeAI">InvokeAI</option>
+            <option value="Fooocus">Fooocus</option>
+            <option value="ComfyUI + SDXL Turbo">ComfyUI + SDXL Turbo</option>
+          </select>
+        </div>
+        <div class="field" id="pony-source-field" style="display:none">
+          <label>Pony Source-Tag</label>
+          <select id="pony-source">
+            <option value="">– keiner (photorealistisch) –</option>
+            <option value="source_anime">source_anime</option>
+            <option value="source_cartoon">source_cartoon</option>
+            <option value="source_furry">source_furry</option>
+            <option value="source_pony">source_pony</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Checkpoint</label>
+          <select id="sd-checkpoint" onchange="onCheckpointChange()">
+            <option value="Juggernaut XL">Juggernaut XL</option>
+            <option value="RealVisXL">RealVisXL</option>
+            <option value="ZavyChromaXL">ZavyChromaXL</option>
+            <option value="DreamShaper XL">DreamShaper XL</option>
+            <option value="Copax TimelessXL">Copax TimelessXL</option>
+            <option value="Playground v2.5">Playground v2.5</option>
+            <option value="Animagine XL">Animagine XL</option>
+            <option value="SDXL Base 1.0">SDXL Base 1.0</option>
+            <option value="custom">Eigener Checkpoint...</option>
+          </select>
+        </div>
+        <div class="field full" id="custom-checkpoint-field" style="display:none">
+          <label>Eigener Checkpoint-Name</label>
+          <input type="text" id="sd-checkpoint-custom" placeholder="z.B. myModel_v2.safetensors">
+        </div>
+      </div>
+      <div id="checkpoint-hint" style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;padding:6px 10px;background:var(--accent-dim);border-radius:6px;border-left:2px solid var(--accent)"></div>
+
+      <!-- Aufnahme -->
+      <div class="section-label">Aufnahme</div>
+      <div class="tags-row" id="shot-type-tags"></div>
+
+      <!-- Basis -->
+      <div class="section-label">Basis</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Geschlecht</label>
+          <select id="gender" onchange="onGenderChange()">
+            <option value="woman">Frau</option>
+            <option value="man">Mann</option>
+            <option value="person">Neutrale Person</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Alter</label>
+          <select id="age">
+            <option value="early 20s">20er</option>
+            <option value="late 20s">späte 20er</option>
+            <option value="early 30s" selected>30er</option>
+            <option value="mid 30s">Mitte 30er</option>
+            <option value="early 40s">40er</option>
+            <option value="50s">50er</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Ethnizität -->
+      <div class="section-label">Ethnizität</div>
+      <div class="tags-row" id="ethnicity-tags"></div>
+
+      <!-- Gesicht -->
+      <div class="section-label">Gesicht</div>
+      <div class="form-grid four">
+        <div class="field">
+          <label>Augenfarbe</label>
+          <select id="eyes">
+            <option value="sharp blue-grey eyes">Blau-Grau</option>
+            <option value="deep brown eyes">Dunkelbraun</option>
+            <option value="light hazel eyes">Haselnuss</option>
+            <option value="striking green eyes">Grün</option>
+            <option value="dark grey eyes">Dunkelgrau</option>
+            <option value="amber eyes">Bernstein</option>
+            <option value="ice blue eyes">Eisblau</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Nasenform</label>
+          <select id="nose">
+            <option value="straight nose">Gerade</option>
+            <option value="button nose">Stupsnase</option>
+            <option value="aquiline nose">Adlernase</option>
+            <option value="slightly upturned nose">Aufgewippt</option>
+            <option value="broad nose">Breit</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Kieferlinie</label>
+          <select id="jaw">
+            <option value="defined cheekbones, soft jawline">Weich</option>
+            <option value="defined cheekbones, strong jaw">Stark</option>
+            <option value="high cheekbones, sharp jawline">Markant</option>
+            <option value="rounded cheeks, gentle jaw">Rund</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Besonderes</label>
+          <select id="face-special">
+            <option value="">Keines</option>
+            <option value="light freckles across nose and cheeks">Sommersprossen</option>
+            <option value="small scar on left cheek">Narbe Wange</option>
+            <option value="strong brow ridge, thick eyebrows">Markante Brauen</option>
+            <option value="deep-set eyes">Tiefliegende Augen</option>
+            <option value="full lips">Volle Lippen</option>
+            <option value="beauty mark above lip">Schönheitsfleck</option>
+            <option value="heterochromia, one blue one brown eye">Heterochromie</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Haare -->
+      <div class="section-label">Haare</div>
+      <div class="form-grid three">
+        <div class="field">
+          <label>Farbe</label>
+          <select id="hair-color">
+            <option value="medium brown hair">Mittelbraun</option>
+            <option value="dark brown hair">Dunkelbraun</option>
+            <option value="black hair">Schwarz</option>
+            <option value="platinum blonde hair">Platinblond</option>
+            <option value="golden blonde hair">Goldblond</option>
+            <option value="deep auburn hair">Rotbraun</option>
+            <option value="bright red hair">Rot</option>
+            <option value="silver grey hair">Silbergrau</option>
+            <option value="bleached white hair">Gebleicht</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Länge</label>
+          <select id="hair-length">
+            <option value="short cropped hair">Kurz</option>
+            <option value="medium length hair">Mittellang</option>
+            <option value="shoulder length hair">Schulterlang</option>
+            <option value="long hair">Lang</option>
+            <option value="very long hair">Sehr lang</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Styling</label>
+          <select id="hair-style">
+            <option value="pulled back loosely">Locker zurück</option>
+            <option value="loose and natural">Offen natürlich</option>
+            <option value="tight bun">Strenger Dutt</option>
+            <option value="messy bun">Unordentlicher Dutt</option>
+            <option value="natural curls">Naturlocken</option>
+            <option value="wavy">Wellig</option>
+            <option value="straight, blunt cut">Glatt gerade</option>
+            <option value="undercut">Undercut</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Körper -->
+      <div class="section-label">Körperbau</div>
+      <div class="form-grid four">
+        <div class="field">
+          <label>Statur</label>
+          <select id="height">
+            <option value="petite, small frame">Zierlich</option>
+            <option value="average height, medium frame" selected>Durchschnittlich</option>
+            <option value="tall, long limbs">Groß</option>
+            <option value="very tall, statuesque">Sehr groß</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Typ</label>
+          <select id="build">
+            <option value="slim, slender build">Schlank</option>
+            <option value="lean, athletic build" selected>Athletisch</option>
+            <option value="muscular, broad shoulders">Muskulös</option>
+            <option value="curvy, hourglass figure">Kurvig</option>
+            <option value="plus size, full figure">Plus Size</option>
+            <option value="stocky, compact build">Stämmig</option>
+            <option value="wiry, lean muscle">Drahtig</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Schultern</label>
+          <select id="shoulders">
+            <option value="">–</option>
+            <option value="narrow shoulders">Schmal</option>
+            <option value="broad shoulders">Breit</option>
+            <option value="square shoulders">Eckig</option>
+            <option value="sloping shoulders">Abfallend</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Hautton</label>
+          <select id="skin">
+            <option value="very fair skin">Sehr hell</option>
+            <option value="fair skin">Hell</option>
+            <option value="light skin" selected>Hellmittel</option>
+            <option value="medium skin tone">Mittel</option>
+            <option value="olive skin tone">Oliv</option>
+            <option value="tan skin">Gebräunt</option>
+            <option value="dark brown skin">Dunkelbraun</option>
+            <option value="deep dark skin">Sehr dunkel</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Frau-spezifische Felder -->
+      <div id="breast-size-row" style="display:none">
+        <div class="form-grid">
+          <div class="field">
+            <label>Oberweite</label>
+            <select id="breast-size">
+              <option value="">– nicht angegeben –</option>
+              <option value="small breasts">Klein</option>
+              <option value="medium breasts">Mittel</option>
+              <option value="large breasts">Groß</option>
+              <option value="huge breasts">Sehr groß</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Schambereich</label>
+            <select id="pubic-hair">
+              <option value="">– nicht angegeben –</option>
+              <option value="no pubic hair">Rasiert</option>
+              <option value="pubic stubble">Stoppeln</option>
+              <option value="trimmed pubic hair">Getrimmt</option>
+              <option value="landing strip">Streifen</option>
+              <option value="pubic hair">Naturel</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Körperbehaarung -->
+      <div class="section-label">Körperbehaarung</div>
+      <div class="tags-row" id="body-hair-tags"></div>
+
+      <!-- Körpermerkmale -->
+      <div class="section-label">Körpermerkmale <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--hint);margin-left:4px">mehrere möglich</span></div>
+      <div class="tags-row" id="body-marks-tags"></div>
+
+      <!-- Mimik & Lighting -->
+      <div class="section-label">Mimik</div>
+      <div class="tags-row" id="expression-tags"></div>
+
+      <div class="section-label">Lighting</div>
+      <div class="tags-row" id="lighting-tags"></div>
+
+      <!-- Notizen -->
+      <div class="section-label">Notizen</div>
+      <div class="field">
+        <input type="text" id="notes" placeholder="Eigene Anmerkungen zum Character (nicht Teil des Prompts)">
+      </div>
+
+      <!-- Buttons -->
+      <div class="btn-row">
+        <button class="btn btn-primary" id="gen-btn" onclick="generate()">
+          <span data-t="generate">Prompt generieren →</span>
+        </button>
+        <button class="btn btn-secondary" onclick="saveCharacter()">
+          <i class="fa fa-floppy-disk" style="margin-right:5px"></i><span data-t="save_character">Character speichern</span>
+        </button>
+      </div>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <!-- Thinking panel -->
+      <div id="thinking-panel">
+        <div class="thinking-header" onclick="toggleThinking()">
+          <div class="thinking-header-left">
+            <span class="thinking-dot"></span>
+            <span>Denkprozess</span>
+          </div>
+          <span class="thinking-toggle" id="thinking-toggle">▲ einklappen</span>
+        </div>
+        <div class="thinking-body" id="thinking-body"></div>
+      </div>
+
+      <!-- Result -->
+      <div class="result-section" id="result-section" style="display:none">
+        <div class="section-label" style="margin-top:2rem">Generierter Prompt</div>
+
+        <div class="zone-card">
+          <div class="zone-header">
+            <span class="zone-name">Zone 1 — Qualität</span>
+            <span class="zone-badge">immer zuerst</span>
+          </div>
+          <div class="zone-body">
+            <div class="prompt-text" id="out-z1"></div>
+            <div class="token-list" id="exp-z1"></div>
+          </div>
+        </div>
+
+        <div class="zone-card">
+          <div class="zone-header">
+            <span class="zone-name">Zone 2 — Gesicht</span>
+            <span class="zone-badge">Konsistenz-Anker</span>
+          </div>
+          <div class="zone-body">
+            <div class="prompt-text" id="out-z2"></div>
+            <div class="token-list" id="exp-z2"></div>
+          </div>
+        </div>
+
+        <div class="zone-card">
+          <div class="zone-header">
+            <span class="zone-name">Zone 3 — Körper</span>
+            <span class="zone-badge">ab Phase 2</span>
+          </div>
+          <div class="zone-body">
+            <div class="prompt-text" id="out-z3"></div>
+            <div class="token-list" id="exp-z3"></div>
+          </div>
+        </div>
+
+        <div class="zone-card">
+          <div class="zone-header">
+            <span class="zone-name">Zone 4 — Kontext</span>
+            <span class="zone-badge">Format & Licht</span>
+          </div>
+          <div class="zone-body">
+            <div class="prompt-text" id="out-z4"></div>
+            <div class="token-list" id="exp-z4"></div>
+          </div>
+        </div>
+
+        <div class="neg-card">
+          <div class="neg-label">Negativ-Prompt</div>
+          <div class="prompt-text" id="out-neg" style="background:transparent;border:none;padding:0;margin:0"></div>
+        </div>
+
+        <div class="copy-row">
+          <button class="copy-btn" onclick="copyText('all')"><i class="fa fa-copy" style="margin-right:4px"></i>Alles</button>
+          <button class="copy-btn" onclick="copyText('positive')"><i class="fa fa-copy" style="margin-right:4px"></i>Nur Positiv</button>
+          <button class="copy-btn" onclick="copyText('negative')"><i class="fa fa-copy" style="margin-right:4px"></i>Nur Negativ</button>
+          <button class="copy-btn" onclick="copyText('phase1')"><i class="fa fa-copy" style="margin-right:4px"></i>Phase 1 (ohne Körper)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-content" id="tab-sheet">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="section-label" style="margin:0">Iterationen</div>
+        <div class="sheet-toggle">
+          <button id="toggle-single" class="sheet-toggle-btn active" onclick="setSheetMode('single')">Dieser Character</button>
+          <button id="toggle-all" class="sheet-toggle-btn" onclick="setSheetMode('all')">Alle Characters</button>
+        </div>
+      </div>
+      <div class="sheet-summary-card" id="sheet-summary-card" style="display:none"></div>
+      <div class="sheet-empty" id="sheet-empty">
+        <i class="fa fa-user-circle" style="font-size:36px;opacity:.3"></i>
+        <div>Kein Character geladen</div>
+      </div>
+      <div id="sheet-iterations-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Settings overlay + panel -->
+<div id="settings-overlay" onclick="closeSettings()"></div>
+<div id="settings-panel">
+  <div class="sp-header">
+    <span class="sp-title"><i class="fa fa-gear" style="margin-right:8px;color:var(--accent)"></i>Einstellungen</span>
+    <button class="sp-close" onclick="closeSettings()"><i class="fa fa-xmark"></i></button>
+  </div>
+  <div class="sp-body">
+
+    <!-- User profile placeholder -->
+    <div class="sp-section">
+      <div class="section-label">Benutzerprofil</div>
+      <div class="user-profile-card">
+        <div class="user-profile-avatar">U</div>
+        <div class="user-profile-info">
+          <div class="user-profile-name">Benutzer</div>
+          <div class="user-profile-role">Lokal · Kein Login</div>
+        </div>
+        <span style="font-size:10px;font-family:var(--mono);color:var(--hint);background:var(--surface);padding:2px 7px;border-radius:10px;border:1px solid var(--border)">bald</span>
+      </div>
+      <div class="info-box" style="font-size:12px">
+        Benutzerprofile — Name, Avatar, persönliche Präferenzen — kommen in einer späteren Version.
+      </div>
+    </div>
+
+    <!-- Provider & Model -->
+    <div class="sp-section">
+      <div class="section-label">Anbieter &amp; Modell</div>
+      <label class="provider-label">Anbieter</label>
+      <select class="provider-select" id="provider-select" onchange="onProviderChange()"></select>
+      <label class="provider-label">Modell</label>
+      <select class="model-select" id="model-select"></select>
+      <div id="provider-status-msg" style="font-size:11px;color:var(--muted);margin-top:6px;font-family:var(--mono)"></div>
+    </div>
+
+    <!-- Anthropic -->
+    <div class="sp-section">
+      <div class="section-label">Anthropic</div>
+      <div class="info-box" style="font-size:12px">
+        API Key aus <code>.env</code> (<code>ANTHROPIC_API_KEY</code>). Für Änderungen <code>.env</code> bearbeiten und App neu starten.
+      </div>
+    </div>
+
+    <!-- Ollama lokal -->
+    <div class="sp-section">
+      <div class="section-label">Ollama (lokal)</div>
+      <div class="info-box" style="font-size:12px">
+        Starten: <code>ollama serve</code> · Modell laden: <code>ollama pull qwen2.5-coder:7b</code>
+      </div>
+      <div class="settings-row">
+        <div class="field" style="flex:1">
+          <label>Host</label>
+          <input type="text" id="ollama-local-host" value="http://localhost:11434" placeholder="http://localhost:11434">
+        </div>
+        <button class="btn btn-secondary" onclick="testOllamaProvider('ollama_local','ollama-local-host','ollama-local-status')">Verbinden</button>
+      </div>
+      <div id="ollama-local-status" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)"></div>
+    </div>
+
+    <!-- Ollama Cloud -->
+    <div class="sp-section">
+      <div class="section-label">Ollama (Cloud / srv01)</div>
+      <div class="info-box" style="font-size:12px">
+        Remote Ollama-Server mit Cloud-Modell-Routing. Host in <code>OLLAMA_CLOUD_HOST</code> setzen.
+      </div>
+      <div class="settings-row">
+        <div class="field" style="flex:1">
+          <label>Host</label>
+          <input type="text" id="ollama-cloud-host" value="http://srv01:11434" placeholder="http://srv01:11434">
+        </div>
+        <button class="btn btn-secondary" onclick="testOllamaProvider('ollama_cloud','ollama-cloud-host','ollama-cloud-status')">Verbinden</button>
+      </div>
+      <div id="ollama-cloud-status" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)"></div>
+    </div>
+
+    <!-- Dev info -->
+    <div class="sp-section">
+      <div class="section-label">Entwickler</div>
+      <div class="info-box" style="font-size:12px">
+        Hexagonale Architektur · Neuen Anbieter: <code>app/adapters/llm/</code> → <code>LLMPort</code> implementieren → in <code>app/config.py</code> eintragen.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="statusbar">
+  <span class="sb-indicator"></span>
+  <span class="sb-msg" id="sb-msg">Bereit</span>
+  <span class="sb-elapsed" id="sb-elapsed"></span>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────
+let selShotType   = 'portrait';
+let selEthnicity  = 'European features';
+let selExpression = 'neutral expression, lips slightly parted';
+let selLighting   = 'soft studio lighting, light grey background';
+let selBodyHair   = new Set();
+let selBodyMarks  = new Set();
+let lastResult    = null;
+let currentCharId = null;
+
+// ─── Option Data ──────────────────────────────────────────────────────────
+const ethnicityOpts = [
+  {l:'Europäisch',v:'European features'},{l:'Nordisch',v:'Nordic features'},
+  {l:'Mediterran',v:'Mediterranean features'},{l:'Slawisch',v:'Slavic features'},
+  {l:'Ostasiatisch',v:'East Asian features'},{l:'Südostasiatisch',v:'Southeast Asian features'},
+  {l:'Südasiatisch',v:'South Asian features'},{l:'Lateinamerikanisch',v:'Latin American features'},
+  {l:'Arabisch',v:'Middle Eastern features'},{l:'Westafrikanisch',v:'West African features'},
+  {l:'Ostafrikanisch',v:'East African features'},{l:'Gemischt',v:'mixed heritage features'},
+];
+const expressionOpts = [
+  {l:'Neutral',v:'neutral expression, lips slightly parted'},
+  {l:'Leichtes Lächeln',v:'subtle smile, warm expression'},
+  {l:'Ernst',v:'serious expression, composed'},
+  {l:'Nachdenklich',v:'contemplative expression, slight frown'},
+];
+const lightingOpts = [
+  {l:'Studio (weich)',v:'soft studio lighting, light grey background'},
+  {l:'Natural',v:'natural window light, overcast sky, white background'},
+  {l:'Dramatisch',v:'dramatic rim lighting, dark background'},
+  {l:'Golden Hour',v:'warm golden hour lighting, subtle bokeh background'},
+];
+const shotTypeOpts = [
+  {l:'Portrait',v:'portrait'},
+  {l:'Oberkörper',v:'upper body shot'},
+  {l:'Ganzkörper',v:'full body shot'},
+];
+const bodyHairOpts = [
+  {l:'Brust',v:'chest hair'},
+  {l:'Achseln',v:'armpit hair'},
+  {l:'Beine',v:'leg hair'},
+  {l:'Allgemein',v:'hairy'},
+];
+const bodyMarksOpts = [
+  {l:'Tattoos (Arm)',v:'tattoo sleeve on left arm'},{l:'Tattoos (Hals)',v:'small neck tattoo'},
+  {l:'Tattoos (Rücken)',v:'back tattoo visible'},{l:'Narben (Gesicht)',v:'faint facial scar'},
+  {l:'Narben (Körper)',v:'battle scar on torso'},{l:'Sommersprossen (Körper)',v:'freckles on shoulders and arms'},
+  {l:'Piercings',v:'subtle ear piercings'},{l:'Nasenring',v:'small nose ring'},
+  {l:'Vitiligo',v:'vitiligo patches on skin'},{l:'Leberfleck',v:'distinctive mole on cheek'},
+  {l:'Ausgeprägte Adern',v:'visible veins on forearms'},{l:'Dehnungsstreifen',v:'stretch marks'},
+];
+
+// ─── Tag Builder ──────────────────────────────────────────────────────────
+function buildSingle(id, opts, getter, setter) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  opts.forEach(o => {
+    const t = document.createElement('span');
+    t.className = 'tag' + (o.v === getter() ? ' active' : '');
+    t.textContent = o.l;
+    t.onclick = () => { setter(o.v); buildSingle(id, opts, getter, setter); };
+    el.appendChild(t);
+  });
+}
+function buildMulti(id, opts, set) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  opts.forEach(o => {
+    const t = document.createElement('span');
+    t.className = 'tag' + (set.has(o.v) ? ' active' : '');
+    t.textContent = o.l;
+    t.onclick = () => { set.has(o.v) ? set.delete(o.v) : set.add(o.v); buildMulti(id, opts, set); };
+    el.appendChild(t);
+  });
+}
+
+buildSingle('shot-type-tags', shotTypeOpts, () => selShotType, v => selShotType = v);
+buildSingle('ethnicity-tags', ethnicityOpts, () => selEthnicity, v => selEthnicity = v);
+buildSingle('expression-tags', expressionOpts, () => selExpression, v => selExpression = v);
+buildSingle('lighting-tags', lightingOpts, () => selLighting, v => selLighting = v);
+buildMulti('body-hair-tags', bodyHairOpts, selBodyHair);
+buildMulti('body-marks-tags', bodyMarksOpts, selBodyMarks);
+
+// ─── Providers ────────────────────────────────────────────────────────────
+async function loadProviders() {
+  const res = await fetch('/api/providers');
+  const providers = await res.json();
+  const sel = document.getElementById('provider-select');
+  sel.innerHTML = '';
+  providers.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name + (p.available ? '' : ' (nicht verfügbar)');
+    opt.disabled = !p.available;
+    sel.appendChild(opt);
+  });
+  // Ersten verfügbaren vorwählen
+  const first = providers.find(p => p.available);
+  if (first) { sel.value = first.id; updateStatusDot(true); loadModels(first.id, first.models); }
+  else updateStatusDot(false);
+  updateProviderPill();
+}
+
+function updateStatusDot(state) {
+  // state: true/"ok" = grün, false/"fail" = rot, "unknown" = gelb
+  const dot = document.getElementById('provider-dot');
+  if (state === true || state === 'ok')       dot.className = 'status-dot ok';
+  else if (state === false || state === 'fail') dot.className = 'status-dot fail';
+  else                                          dot.className = 'status-dot unknown';
+}
+
+function loadModels(providerId, models) {
+  const sel = document.getElementById('model-select');
+  sel.innerHTML = '';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    sel.appendChild(opt);
+  });
+  updateProviderPill();
+}
+
+async function onProviderChange() {
+  updateStatusDot('unknown');
+  const pid = document.getElementById('provider-select').value;
+  const res = await fetch(`/api/providers/${pid}/models`);
+  const data = await res.json();
+  loadModels(pid, data.models);
+  updateStatusDot(data.models.length > 0);
+  updateProviderPill();
+}
+
+document.getElementById('model-select')?.addEventListener('change', updateProviderPill);
+
+// ─── Form Data ────────────────────────────────────────────────────────────
+function getFormData() {
+  return {
+    id: currentCharId || undefined,
+    name: document.getElementById('char-name').value || 'Unbenannter Character',
+    gender: document.getElementById('gender').value,
+    age: document.getElementById('age').value,
+    ethnicity: selEthnicity,
+    eyes: document.getElementById('eyes').value,
+    nose: document.getElementById('nose').value,
+    jaw: document.getElementById('jaw').value,
+    face_special: document.getElementById('face-special').value,
+    hair_color: document.getElementById('hair-color').value,
+    hair_length: document.getElementById('hair-length').value,
+    hair_style: document.getElementById('hair-style').value,
+    height: document.getElementById('height').value,
+    build: document.getElementById('build').value,
+    shoulders: document.getElementById('shoulders').value,
+    skin: document.getElementById('skin').value,
+    breast_size: document.getElementById('breast-size').value,
+    pubic_hair: document.getElementById('pubic-hair').value,
+    body_hair: [...selBodyHair],
+    body_marks: [...selBodyMarks],
+    expression: selExpression,
+    lighting: selLighting,
+    shot_type: selShotType,
+    notes: document.getElementById('notes').value,
+    model_family: document.getElementById('model-family').value,
+    pony_source: document.getElementById('pony-source').value,
+    sd_tool: document.getElementById('sd-tool').value,
+    sd_checkpoint: document.getElementById('sd-checkpoint').value === 'custom' ? '' : document.getElementById('sd-checkpoint').value,
+    sd_checkpoint_custom: document.getElementById('sd-checkpoint-custom').value,
+    provider: document.getElementById('provider-select').value,
+    model: document.getElementById('model-select').value,
+  };
+}
+
+function fillForm(char) {
+  document.getElementById('char-name').value = char.name || '';
+  document.getElementById('gender').value = char.gender || 'woman';
+  document.getElementById('age').value = char.age || 'early 30s';
+  document.getElementById('eyes').value = char.eyes || '';
+  document.getElementById('nose').value = char.nose || '';
+  document.getElementById('jaw').value = char.jaw || '';
+  document.getElementById('face-special').value = char.face_special || '';
+  document.getElementById('hair-color').value = char.hair_color || '';
+  document.getElementById('hair-length').value = char.hair_length || '';
+  document.getElementById('hair-style').value = char.hair_style || '';
+  document.getElementById('height').value = char.height || '';
+  document.getElementById('build').value = char.build || '';
+  document.getElementById('shoulders').value = char.shoulders || '';
+  document.getElementById('skin').value = char.skin || '';
+  document.getElementById('notes').value = char.notes || '';
+
+  selShotType   = char.shot_type  || 'portrait';
+  selEthnicity  = char.ethnicity  || 'European features';
+  selExpression = char.expression || 'neutral expression, lips slightly parted';
+  selLighting   = char.lighting   || 'soft studio lighting, light grey background';
+  selBodyHair   = new Set(char.body_hair || []);
+  selBodyMarks  = new Set(char.body_marks || []);
+
+  const isWoman = (char.gender || 'woman') === 'woman';
+  document.getElementById('breast-size').value = char.breast_size || '';
+  document.getElementById('pubic-hair').value  = char.pubic_hair  || '';
+  document.getElementById('breast-size-row').style.display = isWoman ? 'block' : 'none';
+
+  buildSingle('shot-type-tags', shotTypeOpts, () => selShotType, v => selShotType = v);
+  buildSingle('ethnicity-tags', ethnicityOpts, () => selEthnicity, v => selEthnicity = v);
+  buildSingle('expression-tags', expressionOpts, () => selExpression, v => selExpression = v);
+  buildSingle('lighting-tags', lightingOpts, () => selLighting, v => selLighting = v);
+  buildMulti('body-hair-tags', bodyHairOpts, selBodyHair);
+  buildMulti('body-marks-tags', bodyMarksOpts, selBodyMarks);
+
+  const ckpt = char.sd_checkpoint || 'Juggernaut XL';
+  const ckptSel = document.getElementById('sd-checkpoint');
+  const isCustom = !Array.from(ckptSel.options).some(o => o.value === ckpt);
+  ckptSel.value = isCustom ? 'custom' : ckpt;
+  document.getElementById('sd-checkpoint-custom').value = char.sd_checkpoint_custom || (isCustom ? ckpt : '');
+  document.getElementById('custom-checkpoint-field').style.display = isCustom ? 'block' : 'none';
+  document.getElementById('sd-tool').value = char.sd_tool || 'ComfyUI';
+  const family = char.model_family || 'sdxl';
+  document.getElementById('model-family').value = family;
+  document.getElementById('pony-source').value = char.pony_source || '';
+  document.getElementById('pony-source-field').style.display = family === 'pony_v6' ? 'block' : 'none';
+  updateCheckpointHint();
+}
+
+// ─── Generate ─────────────────────────────────────────────────────────────
+async function generate() {
+  const btn   = document.getElementById('gen-btn');
+  const errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+
+  const tStart = Date.now();
+  startTicker();
+  resetThinking();
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(getFormData()),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${response.status}`);
+    }
+
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+
+      // SSE events are separated by double newline
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        let event;
+        try { event = JSON.parse(line.slice(6)); } catch { continue; }
+        handleStreamEvent(event, tStart);
+      }
+    }
+  } catch(e) {
+    const elapsed = Math.round((Date.now() - tStart) / 1000);
+    stopTicker(false, elapsed);
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    loadHistory();
+  }
+
+  btn.disabled = false;
+}
+
+function handleStreamEvent(event, tStart) {
+  const elapsed = Math.round((Date.now() - tStart) / 1000);
+  const STATUS_LABELS = {
+    connecting:  t('gen.sending'),
+    loaded:      'Modell geladen, generiert…',
+    thinking:    'Modell denkt nach…',
+    generating:  'Prompt wird geschrieben…',
+  };
+  switch (event.type) {
+    case 'status':
+      setTickerMsg(STATUS_LABELS[event.msg] || event.msg);
+      break;
+    case 'thinking':
+      appendThinking(event.delta);
+      break;
+    case 'result':
+      stopTicker(true, elapsed);
+      renderResult(event.data);
+      doneThinking();
+      loadHistory();
+      break;
+    case 'error':
+      stopTicker(false, elapsed);
+      document.getElementById('error-msg').textContent = event.error;
+      document.getElementById('error-msg').style.display = 'block';
+      doneThinking();
+      loadHistory();
+      break;
+  }
+}
+
+function renderZone(promptId, expId, zone) {
+  document.getElementById(promptId).textContent = zone.prompt;
+  const container = document.getElementById(expId);
+  container.innerHTML = '';
+  (zone.tokens || []).forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'token-item';
+    item.innerHTML = `<span class="token-name">${t.name}</span><span class="token-desc">${t.explanation}</span>`;
+    container.appendChild(item);
+  });
+  return zone.prompt;
+}
+
+function renderResult(data) {
+  const r = data.result;
+  let pos = '';
+  pos += renderZone('out-z1','exp-z1',r.zone1) + '\n\n';
+  pos += renderZone('out-z2','exp-z2',r.zone2_face) + '\n\n';
+  pos += renderZone('out-z3','exp-z3',r.zone3_body) + '\n\n';
+  pos += renderZone('out-z4','exp-z4',r.zone4_context);
+  document.getElementById('out-neg').textContent = r.negative;
+
+  lastResult = { positive: pos.trim(), negative: r.negative,
+    zone1: r.zone1.prompt, zone2: r.zone2_face.prompt,
+    zone4: r.zone4_context.prompt };
+
+  document.getElementById('result-section').style.display = 'block';
+  document.getElementById('result-section').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ─── Copy ─────────────────────────────────────────────────────────────────
+function copyText(mode) {
+  if (!lastResult) return;
+  let text = '';
+  if (mode === 'all')      text = `POSITIV:\n${lastResult.positive}\n\nNEGATIV:\n${lastResult.negative}`;
+  if (mode === 'positive') text = lastResult.positive;
+  if (mode === 'negative') text = lastResult.negative;
+  if (mode === 'phase1')   text = [lastResult.zone1, lastResult.zone2, lastResult.zone4].join('\n\n');
+  navigator.clipboard.writeText(text);
+  showToast('Kopiert!');
+}
+
+// ─── Characters ───────────────────────────────────────────────────────────
+async function loadCharacters() {
+  const res = await fetch('/api/characters');
+  const chars = await res.json();
+  const el = document.getElementById('character-list');
+  const filter = document.getElementById('history-filter');
+  if (filter) filter.innerHTML = '<option value="">Alle Characters</option>';
+
+  if (!chars.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--hint);text-align:center;padding:2rem 1rem">Noch keine Characters.<br>Erstelle deinen ersten.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  chars.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'char-item' + (c.id === currentCharId ? ' active' : '');
+    item.innerHTML = `
+      <div class="char-name">${c.name}</div>
+      <div class="char-meta">${c.gender} · ${c.age}</div>
+      <div class="char-actions">
+        <button class="char-btn" onclick="loadCharacter('${c.id}')">Laden</button>
+        <button class="char-btn danger" onclick="deleteCharacter('${c.id}')">Löschen</button>
+      </div>`;
+    el.appendChild(item);
+
+    if (filter) {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.name;
+      filter.appendChild(opt);
+    }
+  });
+}
+
+async function saveCharacter() {
+  const data = getFormData();
+  const res = await fetch('/api/characters', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+  const result = await res.json();
+  if (result.ok) {
+    currentCharId = result.id;
+    showToast('Character gespeichert');
+    loadCharacters();
+  }
+}
+
+async function loadCharacter(id) {
+  const res = await fetch(`/api/characters/${id}`);
+  const char = await res.json();
+  currentCharId = char.id;
+  fillForm(char);
+  loadCharacters();
+  switchTab('generator');
+
+  const hRes = await fetch(`/api/history?character_id=${id}`);
+  const history = await hRes.json();
+  const lastEntry = history.find(e => e.status === 'success');
+  if (lastEntry) {
+    renderResult(lastEntry);
+  } else {
+    document.getElementById('result-section').style.display = 'none';
+    lastResult = null;
+  }
+}
+
+async function deleteCharacter(id) {
+  if (!confirm('Character löschen?')) return;
+  await fetch(`/api/characters/${id}`, {method:'DELETE'});
+  if (currentCharId === id) { currentCharId = null; newCharacter(); }
+  loadCharacters();
+  loadHistory();
+}
+
+function newCharacter() {
+  currentCharId = null;
+  // Reset all form fields to their defaults
+  document.getElementById('char-name').value       = 'Unbenannter Character';
+  document.getElementById('notes').value           = '';
+  document.getElementById('gender').value          = 'woman';
+  document.getElementById('age').value             = 'early 30s';
+  document.getElementById('eyes').value            = 'sharp blue-grey eyes';
+  document.getElementById('nose').value            = 'straight nose';
+  document.getElementById('jaw').value             = 'defined cheekbones, soft jawline';
+  document.getElementById('face-special').value    = '';
+  document.getElementById('hair-color').value      = 'medium brown hair';
+  document.getElementById('hair-length').value     = 'short cropped hair';
+  document.getElementById('hair-style').value      = 'pulled back loosely';
+  document.getElementById('height').value          = 'average height, medium frame';
+  document.getElementById('build').value           = 'lean, athletic build';
+  document.getElementById('shoulders').value       = '';
+  document.getElementById('skin').value            = 'light skin';
+  document.getElementById('model-family').value     = 'sdxl';
+  document.getElementById('pony-source').value      = '';
+  document.getElementById('pony-source-field').style.display = 'none';
+  document.getElementById('sd-tool').value         = 'ComfyUI';
+  document.getElementById('sd-checkpoint').value   = 'Juggernaut XL';
+  document.getElementById('sd-checkpoint-custom').value = '';
+  document.getElementById('custom-checkpoint-field').style.display = 'none';
+  document.getElementById('checkpoint-hint').textContent = checkpointHints['Juggernaut XL'] || '';
+  // Reset tag selections
+  selShotType   = 'portrait';
+  selEthnicity  = 'European features';
+  selExpression = 'neutral expression, lips slightly parted';
+  selLighting   = 'soft studio lighting, light grey background';
+  selBodyHair   = new Set();
+  selBodyMarks.clear();
+  document.getElementById('breast-size').value = '';
+  document.getElementById('pubic-hair').value  = '';
+  document.getElementById('breast-size-row').style.display = 'block';
+  buildSingle('shot-type-tags',  shotTypeOpts,  () => selShotType,   v => selShotType = v);
+  buildSingle('ethnicity-tags',  ethnicityOpts, () => selEthnicity,  v => selEthnicity = v);
+  buildSingle('expression-tags', expressionOpts, () => selExpression, v => selExpression = v);
+  buildSingle('lighting-tags',   lightingOpts,  () => selLighting,   v => selLighting = v);
+  buildMulti('body-hair-tags',  bodyHairOpts,  selBodyHair);
+  buildMulti('body-marks-tags', bodyMarksOpts, selBodyMarks);
+  // Reset result + thinking
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('error-msg').style.display = 'none';
+  resetThinking();
+  lastResult = null;
+  loadCharacters();
+}
+
+// ─── History ──────────────────────────────────────────────────────────────
+async function loadHistory() { /* ersetzt durch loadSheet() */ }
+
+async function _loadHistoryLegacy() {
+  const res = await fetch('/api/history');
+  const history = await res.json();
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  el.innerHTML = '';
+  el._historyData = {};
+  history.slice(0,30).forEach(h => {
+    const date    = new Date(h.created_at).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const isError = h.status === 'error';
+    const item    = document.createElement('div');
+    item.className = 'history-item' + (isError ? ' error' : '');
+
+    const ERROR_TYPE_META = {
+      connection: { icon: 'fa-plug',          label: 'Verbindung',    color: '#e0a155' },
+      timeout:    { icon: 'fa-clock',          label: 'Timeout',       color: '#e0a155' },
+      auth:       { icon: 'fa-lock',           label: 'Auth',          color: '#e05555' },
+      format:     { icon: 'fa-file-code',      label: 'Kein JSON',     color: '#9b59b6' },
+      content:    { icon: 'fa-shield-halved',  label: 'Content-Filter', color: '#e05555' },
+      http:       { icon: 'fa-triangle-exclamation', label: 'HTTP',    color: '#e05555' },
+      unknown:    { icon: 'fa-circle-exclamation',   label: 'Fehler',  color: '#e05555' },
+    };
+    const eMeta = isError ? (ERROR_TYPE_META[h.error_type] || ERROR_TYPE_META.unknown) : null;
+
+    const badge = isError
+      ? `<span class="history-badge" style="background:rgba(224,85,85,.12);color:${eMeta.color}">
+           <i class="fa ${eMeta.icon}" style="margin-right:4px"></i>${eMeta.label} · ${h.provider} · ${h.model}
+         </span>`
+      : `<span class="history-badge">${h.provider} · ${h.model}</span>`;
+
+    const body = isError
+      ? `<div class="history-error-msg">${h.error || '–'}</div>`
+      : `<div class="history-prompt">${h.positive_prompt || ''}</div>`;
+
+    const actions = isError
+      ? `<button class="copy-btn" onclick="copyErrorMsg('${h.id}')"><i class="fa fa-copy" style="margin-right:4px"></i>Fehler kopieren</button>
+         <button class="copy-btn" style="color:var(--danger);border-color:var(--danger)" onclick="deleteHistory('${h.id}')"><i class="fa fa-trash" style="margin-right:4px"></i>${t('history.delete')}</button>`
+      : `<button class="copy-btn" onclick="copyHistoryPrompt('${h.id}')"><i class="fa fa-copy" style="margin-right:4px"></i>${t('history.copy')}</button>
+         <button class="copy-btn" style="color:var(--danger);border-color:var(--danger)" onclick="deleteHistory('${h.id}')"><i class="fa fa-trash" style="margin-right:4px"></i>${t('history.delete')}</button>`;
+
+    item.innerHTML = `
+      <div class="history-meta">
+        <span class="history-name">${h.character_name || '–'}</span>
+        ${badge}
+        <span class="history-date">${date}</span>
+      </div>
+      ${body}
+      <div class="history-actions">${actions}</div>`;
+    el._historyData[h.id] = h;
+    el.appendChild(item);
+  });
+}
+
+function copyHistoryPrompt(id) {
+  const h = _historyData[id];
+  if (!h) return;
+  navigator.clipboard.writeText(`POSITIV:\n${h.positive_prompt}\n\nNEGATIV:\n${h.negative_prompt}`);
+  showToast('Kopiert!');
+}
+
+function copyErrorMsg(id) {
+  const h = _historyData[id];
+  if (!h) return;
+  navigator.clipboard.writeText([`Zeitpunkt: ${h.created_at}`,`Provider: ${h.provider}`,`Modell: ${h.model}`,`Character: ${h.character_name}`,``,`Fehler: ${h.error || '–'}`].join('\n'));
+  showToast('Fehler kopiert!');
+}
+
+async function deleteHistory(id) {
+  await fetch(`/api/history/${id}`, {method:'DELETE'});
+  loadSheet();
+}
+
+// ─── Settings Panel ────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('settings-panel').classList.add('open');
+  document.getElementById('settings-overlay').classList.add('open');
+  document.getElementById('user-menu').classList.remove('open');
+}
+function closeSettings() {
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+function toggleUserMenu() {
+  document.getElementById('user-menu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const avatar = document.getElementById('user-avatar');
+  if (avatar && !avatar.parentElement.contains(e.target)) {
+    document.getElementById('user-menu').classList.remove('open');
+  }
+});
+
+async function testOllamaProvider(providerId, hostInputId, statusId) {
+  const host = document.getElementById(hostInputId).value;
+  const statusEl = document.getElementById(statusId);
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Verbinde…';
+  const res = await fetch(`/api/ollama/${providerId}/host`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({host}),
+  });
+  const data = await res.json();
+  if (data.available) {
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = `✓ Verbunden · ${data.models.length} Modelle`;
+  } else {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = '✗ Nicht erreichbar';
+  }
+  loadProviders();
+}
+
+// ─── UI Helpers ───────────────────────────────────────────────────────────
+function updateProviderPill() {
+  const provSel  = document.getElementById('provider-select');
+  const modelSel = document.getElementById('model-select');
+  const pill     = document.getElementById('provider-pill-text');
+  if (!provSel || !pill) return;
+  const prov  = provSel.options[provSel.selectedIndex]?.text || '–';
+  const model = modelSel.value || '';
+  pill.textContent = model ? `${prov} · ${model}` : prov;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['generator','sheet'];
+    t.className = 'tab' + (names[i] === name ? ' active' : '');
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.className = 'tab-content');
+  document.getElementById('tab-' + name).className = 'tab-content active';
+  if (name === 'sheet') loadSheet();
+}
+
+// ─── Character Sheet ──────────────────────────────────────────────────────
+
+let _sheetEntries = [];
+let _historyData  = {};
+let _sheetMode    = 'single';
+
+const DIFF_LABELS = {
+  shot_type:'Aufnahme', model_family:'Familie', pony_source:'Source',
+  gender:'Geschlecht', age:'Alter', ethnicity:'Ethnizität',
+  eyes:'Augen', nose:'Nase', jaw:'Kiefer',
+  hair_color:'Haarfarbe', hair_length:'Haarlänge', hair_style:'Frisur',
+  build:'Typ', height:'Statur', skin:'Hautton',
+  breast_size:'Oberweite', pubic_hair:'Scham', body_hair:'Behaarung',
+  expression:'Mimik', lighting:'Lighting',
+  sd_checkpoint:'Checkpoint', sd_tool:'Tool',
+};
+
+function computeDiff(prev, curr) {
+  if (!prev) return [];
+  return Object.entries(DIFF_LABELS)
+    .filter(([k]) => JSON.stringify(prev[k] ?? '') !== JSON.stringify(curr[k] ?? ''))
+    .map(([, label]) => label);
+}
+
+function setSheetMode(mode) {
+  _sheetMode = mode;
+  document.getElementById('toggle-single').className = 'sheet-toggle-btn' + (mode === 'single' ? ' active' : '');
+  document.getElementById('toggle-all').className    = 'sheet-toggle-btn' + (mode === 'all'    ? ' active' : '');
+  loadSheet();
+}
+
+async function loadSheet() {
+  const isAll = _sheetMode === 'all';
+  const noChar = !currentCharId;
+
+  document.getElementById('sheet-empty').style.display = (!isAll && noChar) ? 'flex' : 'none';
+  document.getElementById('sheet-summary-card').style.display = (isAll || !noChar) ? 'block' : 'none';
+  if (!isAll && noChar) { document.getElementById('sheet-iterations-list').innerHTML = ''; return; }
+
+  if (!isAll) renderSheetSummary();
+  else document.getElementById('sheet-summary-card').innerHTML =
+    '<div style="font-size:13px;color:var(--muted)">Globaler Verlauf — alle Characters</div>';
+
+  const url = isAll ? '/api/history' : `/api/history?character_id=${currentCharId}`;
+  const res  = await fetch(url);
+  const all  = await res.json();
+
+  _historyData = {};
+  all.forEach(e => _historyData[e.id] = e);
+
+  _sheetEntries = isAll ? all : all.filter(e => e.status === 'success');
+  renderIterations(_sheetEntries, isAll);
+}
+
+function renderSheetSummary() {
+  const d = getFormData();
+  const familyLabel = {sdxl:'SDXL', pony_v6:'Pony V6', illustrious:'Illustrious XL'}[d.model_family] || d.model_family;
+  const ckpt = d.sd_checkpoint || d.sd_checkpoint_custom || '–';
+  document.getElementById('sheet-summary-card').innerHTML = `
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">${d.name || '–'}</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${d.gender} · ${d.age} · ${d.ethnicity}</div>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--hint)">${familyLabel} · ${ckpt} · ${d.sd_tool}</div>
+  `;
+}
+
+function renderIterations(entries, globalMode = false) {
+  const el = document.getElementById('sheet-iterations-list');
+  if (!entries.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:32px 0">Noch keine Einträge.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  const successEntries = globalMode ? null : entries.filter(e => e.status === 'success');
+  entries.forEach((entry, i) => {
+    const isError  = entry.status === 'error';
+    const snap     = entry.character_snapshot || {};
+    const prevSnap = !globalMode ? (successEntries?.[successEntries.indexOf(entry) + 1]?.character_snapshot || null) : null;
+    const diff     = globalMode ? [] : computeDiff(prevSnap, snap);
+    const version  = !globalMode ? (entries.length - i) : null;
+    const dt       = new Date(entry.created_at);
+    const date     = `${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+    const family   = {sdxl:'SDXL', pony_v6:'Pony V6', illustrious:'Illustrious XL'}[entry.model_family] || '';
+    const shot     = (snap.shot_type || 'portrait').replace('portrait','Portrait').replace('upper body shot','Oberkörper').replace('full body shot','Ganzkörper');
+    const preview  = isError ? (entry.error || '–') : (entry.result?.zone1?.prompt || (entry.positive_prompt || '').split('\n')[0] || '–');
+    const hasImage = !!entry.image_path;
+
+    const versionBadge = version
+      ? `<span class="iter-version">v${version}</span>`
+      : `<span class="iter-meta-chip" style="background:var(--surface);color:var(--ink)">${entry.character_name || '–'}</span>`;
+
+    const errorBadge = isError
+      ? `<span class="iter-meta-chip" style="background:rgba(224,85,85,.12);color:#e05555">Fehler</span>`
+      : '';
+
+    const diffHtml = !globalMode
+      ? (diff.length
+          ? `<div class="iter-diff">↳ ${diff.map(d => `<span class="diff-chip">${d}</span>`).join('')}</div>`
+          : `<div class="iter-diff" style="color:var(--hint)">${i === entries.length-1 ? '↳ Erste Version' : '↳ Keine Änderungen'}</div>`)
+      : '';
+
+    const actionBtns = isError
+      ? `<button class="iter-action-btn iter-copy-err-btn">Fehler kopieren</button>
+         <button class="iter-action-btn iter-delete-btn" style="color:var(--danger);border-color:var(--danger)">Löschen</button>`
+      : `<button class="iter-action-btn iter-load-btn">Laden</button>
+         <button class="iter-action-btn iter-copy-btn">Kopieren</button>
+         <button class="iter-action-btn iter-delete-btn" style="color:var(--danger);border-color:var(--danger)">Löschen</button>
+         <label class="iter-action-btn" style="cursor:pointer">
+           ${hasImage ? '🖼 Ersetzen' : '+ Bild'}
+           <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" class="iter-img-input">
+         </label>`;
+
+    const card = document.createElement('div');
+    card.className = 'iter-card' + (isError ? ' error' : '');
+    card.innerHTML = `
+      <div class="iter-header">
+        ${versionBadge}
+        ${errorBadge}
+        <span class="iter-date" style="font-size:12px;color:var(--muted)">${date}</span>
+        ${family ? `<span class="iter-meta-chip">${family}</span>` : ''}
+        ${!isError && !globalMode ? `<span class="iter-meta-chip">${shot}</span>` : ''}
+        <span style="flex:1"></span>
+        <span class="iter-model-name">${entry.model || '–'}</span>
+        ${actionBtns}
+      </div>
+      ${diffHtml}
+      <div class="iter-prompt-preview" style="${isError ? 'color:var(--danger)' : ''}">${preview}</div>
+      <div class="iter-image-area" id="iter-img-${entry.id}">
+        ${hasImage ? `<img class="iter-thumb" src="/api/history/${entry.id}/image" onclick="this.style.maxWidth=this.style.maxWidth?'':'100%'">` : ''}
+      </div>
+    `;
+
+    card.querySelector('.iter-load-btn')?.addEventListener('click', () => { renderResult(entry); switchTab('generator'); });
+    card.querySelector('.iter-copy-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(`POSITIV:\n${entry.positive_prompt}\n\nNEGATIV:\n${entry.negative_prompt}`);
+      showToast('Kopiert!');
+    });
+    card.querySelector('.iter-copy-err-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(`Zeitpunkt: ${entry.created_at}\nProvider: ${entry.provider}\nModell: ${entry.model}\nCharacter: ${entry.character_name}\n\nFehler: ${entry.error || '–'}`);
+      showToast('Fehler kopiert!');
+    });
+    card.querySelector('.iter-delete-btn')?.addEventListener('click', async () => {
+      await fetch(`/api/history/${entry.id}`, {method:'DELETE'});
+      loadSheet();
+    });
+    card.querySelector('.iter-prompt-preview')?.addEventListener('click', function() { this.classList.toggle('expanded'); });
+    card.querySelector('.iter-img-input')?.addEventListener('change', function() { uploadIterationImage(entry.id, this); });
+
+    el.appendChild(card);
+  });
+}
+
+async function uploadIterationImage(entryId, input) {
+  if (!input.files[0]) return;
+  const fd = new FormData();
+  fd.append('image', input.files[0]);
+  const res = await fetch(`/api/history/${entryId}/image`, {method:'POST', body: fd});
+  if (res.ok) {
+    const imgArea = document.getElementById(`iter-img-${entryId}`);
+    imgArea.innerHTML = `<img class="iter-thumb" src="/api/history/${entryId}/image?t=${Date.now()}" onclick="this.style.maxWidth=this.style.maxWidth?'':'100%'">`;
+    input.parentElement.childNodes[0].textContent = '🖼 Ersetzen';
+    showToast('Bild gespeichert');
+  } else {
+    showToast('Fehler beim Hochladen');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  setTimeout(() => t.className = 'toast', 2000);
+}
+
+// ─── i18n ─────────────────────────────────────────────────────────────────
+const LANG = {
+  de: {
+    'new':                  'Neu',
+    'tab.generator':        'Generator',
+    'tab.history':          'Verlauf',
+    'tab.sheet':            'Charakter',
+    'tab.settings':         'Einstellungen',
+    'generate':             'Prompt generieren →',
+    'save_character':       'Character speichern',
+    'gen.sending':          'Sende Anfrage…',
+    'gen.waiting':          'Warte auf LLM…',
+    'gen.local_hint':       'Modell denkt nach — bitte warten…',
+    'gen.still_running':    'Läuft noch…',
+    'gen.done':             '✓ Fertig',
+    'gen.error':            '✗ Fehler',
+    'history.empty':        'Noch kein Verlauf.',
+    'history.copy':         'Kopieren',
+    'history.delete':       'Löschen',
+    'history.error_badge':  'Fehler',
+  },
+  en: {
+    'new':                  'New',
+    'tab.generator':        'Generator',
+    'tab.history':          'History',
+    'tab.sheet':            'Character',
+    'tab.settings':         'Settings',
+    'generate':             'Generate Prompt →',
+    'save_character':       'Save Character',
+    'gen.sending':          'Sending request…',
+    'gen.waiting':          'Waiting for LLM…',
+    'gen.local_hint':       'Model is thinking — please wait…',
+    'gen.still_running':    'Still running…',
+    'gen.done':             '✓ Done',
+    'gen.error':            '✗ Error',
+    'history.empty':        'No history yet.',
+    'history.copy':         'Copy',
+    'history.delete':       'Delete',
+    'history.error_badge':  'Error',
+  },
+};
+
+let _lang = localStorage.getItem('sdxl-lang') || 'de';
+
+function t(key) {
+  return LANG[_lang]?.[key] ?? LANG.de?.[key] ?? key;
+}
+
+function setLang(l) {
+  _lang = l;
+  localStorage.setItem('sdxl-lang', l);
+  document.getElementById('lang-de').classList.toggle('active', l === 'de');
+  document.getElementById('lang-en').classList.toggle('active', l === 'en');
+  document.querySelectorAll('[data-t]').forEach(el => {
+    el.textContent = t(el.dataset.t);
+  });
+}
+
+// ─── Status Bar ────────────────────────────────────────────────────────────
+let _tickerTimer = null;
+let _tickerMsgOverridden = false;
+
+const TICKER_STAGES = [
+  { at:  0, key: 'gen.sending'      },
+  { at: 60, key: 'gen.still_running'},
+];
+
+function startTicker() {
+  const bar       = document.getElementById('statusbar');
+  const msgEl     = document.getElementById('sb-msg');
+  const elapsedEl = document.getElementById('sb-elapsed');
+  bar.className = 'running';
+  msgEl.textContent = t(TICKER_STAGES[0].key);
+  elapsedEl.textContent = '0s';
+  _tickerMsgOverridden = false;
+  const start = Date.now();
+  let stageIdx = 0;
+  _tickerTimer = setInterval(() => {
+    const s = Math.round((Date.now() - start) / 1000);
+    elapsedEl.textContent = s + 's';
+    // only use stage fallback if no stream event has set the message
+    if (!_tickerMsgOverridden) {
+      while (stageIdx < TICKER_STAGES.length - 1 && TICKER_STAGES[stageIdx + 1].at <= s) stageIdx++;
+      msgEl.textContent = t(TICKER_STAGES[stageIdx].key);
+    }
+  }, 500);
+}
+
+function setTickerMsg(msg) {
+  _tickerMsgOverridden = true;
+  document.getElementById('sb-msg').textContent = msg;
+}
+
+function stopTicker(success, elapsed) {
+  clearInterval(_tickerTimer);
+  _tickerTimer = null;
+  const bar       = document.getElementById('statusbar');
+  const msgEl     = document.getElementById('sb-msg');
+  const elapsedEl = document.getElementById('sb-elapsed');
+  elapsedEl.textContent = '';
+  if (success) {
+    bar.className = 'done';
+    msgEl.textContent = t('gen.done') + ' — ' + elapsed + 's';
+  } else {
+    bar.className = 'error';
+    msgEl.textContent = t('gen.error');
+  }
+  setTimeout(() => {
+    bar.className = '';
+    msgEl.textContent = 'Bereit';
+  }, 4000);
+}
+
+// ─── Thinking Panel ────────────────────────────────────────────────────────
+let _thinkingCollapsed = false;
+
+function resetThinking() {
+  const panel = document.getElementById('thinking-panel');
+  panel.className = '';
+  panel.style.display = 'none';
+  document.getElementById('thinking-body').textContent = '';
+  _thinkingCollapsed = false;
+  document.getElementById('thinking-toggle').textContent = '▲ einklappen';
+  document.getElementById('thinking-body').classList.remove('collapsed');
+}
+
+function appendThinking(delta) {
+  const panel = document.getElementById('thinking-panel');
+  const body  = document.getElementById('thinking-body');
+  if (!panel.classList.contains('visible')) {
+    panel.classList.add('visible');
+    panel.style.display = 'block';
+  }
+  body.textContent += delta;
+  // auto-scroll to bottom if not manually scrolled up
+  if (!_thinkingCollapsed) {
+    body.scrollTop = body.scrollHeight;
+  }
+}
+
+function doneThinking() {
+  const panel = document.getElementById('thinking-panel');
+  if (panel.classList.contains('visible')) {
+    panel.classList.add('done');
+    document.getElementById('thinking-toggle').textContent =
+      _thinkingCollapsed ? '▼ ausklappen' : '▲ einklappen';
+  }
+}
+
+function toggleThinking() {
+  _thinkingCollapsed = !_thinkingCollapsed;
+  const body = document.getElementById('thinking-body');
+  const toggle = document.getElementById('thinking-toggle');
+  if (_thinkingCollapsed) {
+    body.classList.add('collapsed');
+    toggle.textContent = '▼ ausklappen';
+  } else {
+    body.classList.remove('collapsed');
+    toggle.textContent = '▲ einklappen';
+    body.scrollTop = body.scrollHeight;
+  }
+}
+
+// ─── Checkpoint Hints ─────────────────────────────────────────────────────
+const checkpointHints = {
+  'Juggernaut XL':    'Sehr stabile Gesichter, photorealistisch. RAW photo + analog style sehr effektiv.',
+  'RealVisXL':        'Natürliche Hauttöne. Natural lighting + candid photo statt übermäßig Studio-Tokens.',
+  'ZavyChromaXL':     'Vielseitig. Verträgt lebhaftere Beschreibungen, vibrant + detailed wirken gut.',
+  'DreamShaper XL':   'Leicht stilisiert. Detailed portrait + artistic passen — Hyperrealismus-Tokens reduzieren.',
+  'Copax TimelessXL': 'Cineastisch. cinematic + film grain + 35mm sehr effektiv.',
+  'Playground v2.5':  'Ästhetisch. aesthetic + beautiful + high quality statt technischer Foto-Tokens.',
+  'Animagine XL':     'Anime-Stil. Anime-Vokabular: masterpiece + best quality statt RAW photo.',
+  'SDXL Base 1.0':    'Vanilla SDXL. Alle Qualitäts-Tokens explizit setzen, maximale Kompatibilität.',
+  'custom':           'Eigener Checkpoint — LLM generiert allgemeinen SDXL-Prompt ohne spezifische Optimierung.',
+};
+
+function onModelFamilyChange() {
+  const family = document.getElementById('model-family').value;
+  document.getElementById('pony-source-field').style.display = family === 'pony_v6' ? 'block' : 'none';
+}
+
+function onGenderChange() {
+  const gender = document.getElementById('gender').value;
+  document.getElementById('breast-size-row').style.display = gender === 'woman' ? 'block' : 'none';
+  if (gender !== 'woman') {
+    document.getElementById('breast-size').value = '';
+    document.getElementById('pubic-hair').value  = '';
+  }
+}
+
+function onCheckpointChange() {
+  const val = document.getElementById('sd-checkpoint').value;
+  document.getElementById('custom-checkpoint-field').style.display = val === 'custom' ? 'block' : 'none';
+  updateCheckpointHint();
+}
+
+function updateCheckpointHint() {
+  const val = document.getElementById('sd-checkpoint').value;
+  const hint = checkpointHints[val] || '';
+  const el = document.getElementById('checkpoint-hint');
+  el.textContent = hint;
+  el.style.display = hint ? 'block' : 'none';
+}
+
+updateCheckpointHint();
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+setLang(_lang);
+loadProviders();
+loadCharacters();
+</script>
+</body>
+</html>

@@ -1,0 +1,1120 @@
+# Master-Leitfaden: Prompting für Stable Diffusion, Pony & Flux
+
+**Version 3.2** | Stand: Mai 2026
+
+---
+
+## 1. Die Modell-Basen im Schnellüberblick
+
+Bevor du ein Wort tippst, musst du wissen, welche Architektur unter der Haube steckt. Jede Generation hat ein anderes „Gehirn" (den Text-Encoder) und verarbeitet deine Eingaben grundlegend anders.
+
+| Architektur | Primärer Prompt-Stil | Negative Prompts? | Typische Auflösung | Hardware-Hunger |
+|---|---|---|---|---|
+| SD 1.5 | Stichwort-Suppe (Tags) | Absolut Pflicht | 512 × 512 Pixel | Sehr niedrig |
+| SDXL | Hybrid (Sätze + Tags) | Empfohlen | 1024 × 1024 Pixel | Mittel (mind. 8 GB VRAM) |
+| Pony (SDXL-Spezial) | Spezifische Score-Tags | Optional / Minimal | 1024 × 1024 Pixel | Mittel (mind. 8 GB VRAM) |
+| Illustrious / NoobAI-XL | Qualitäts-Tags + Danbooru | Empfohlen | 1024 × 1024 Pixel | Mittel (mind. 8 GB VRAM) |
+| SD 3.5 / Flux | Natürliche Sprache (Prosa) | Nein (ignoriert/verwirrt) | 1024 × 1024 Pixel+ | Hoch bis Extrem |
+
+---
+
+## 2. Checkpoints vs. Basismodelle – und wo man sie bekommt
+
+### Basismodelle
+
+Das sind die „rohen" Modelle, die direkt von den Entwicklern veröffentlicht werden – z. B. SD 1.5 von Stability AI oder Flux.1 Dev von Black Forest Labs. Sie sind vielseitig, aber bewusst neutral gehalten. Kaum jemand nutzt sie direkt.
+
+### Checkpoints (Fine-Tunes / Merges)
+
+Das ist das, was du in der Praxis fast immer verwendest. Die Community hat die Basismodelle auf spezifische Datensätze weitertrainiert (Fine-Tune) oder mehrere Modelle miteinander vermischt (Merge). Das Ergebnis ist ein Checkpoint – ein vollständiges Modell mit einem bestimmten Stil oder einer bestimmten Stärke.
+
+Beispiele:
+- **Realistic Vision** (SD 1.5) → spezialisiert auf fotorealistische Portraits
+- **Juggernaut XL** (SDXL) → der beliebteste Allrounder für Fotorealismus
+- **DreamShaper** (SD 1.5 / SDXL) → flexibel für Fantasy und Illustration
+
+Das Prompting-Prinzip bleibt dasselbe wie beim jeweiligen Basismodell – aber Checkpoints reagieren oft stärker auf bestimmte Tags. Die Modellseite auf Civitai enthält immer empfohlene Prompts und Settings des Erstellers. Diese solltest du als Startpunkt nutzen.
+
+### Wo bekomme ich Modelle?
+
+**Civitai (civitai.com)** ist die wichtigste Community-Plattform. Hier findest du Checkpoints, LoRAs, Embeddings und Wildcards – mit Beispielbildern, Bewertungen und eingebetteten Generierungsparametern. Auf jeder Modellseite siehst du die Basis-Architektur (SD 1.5, SDXL, Pony, Illustrious, Flux ...) – das bestimmt, welche Prompting-Regeln aus diesem Leitfaden gelten.
+
+**Hugging Face (huggingface.co)** ist die technischere Alternative. Hier veröffentlichen Stability AI, Black Forest Labs und Forscher ihre offiziellen Basismodelle.
+
+> **Sicherheitshinweis:** Lade nur SafeTensor-Dateien (`.safetensors`) herunter, keine `.ckpt`-Dateien von unbekannten Quellen. SafeTensors können keinen ausführbaren Code enthalten.
+
+---
+
+## 3. Sprache: Immer Englisch!
+
+**Dies ist einer der wichtigsten und am häufigsten ignorierten Grundsätze.**
+
+Alle gängigen Modelle wurden überwiegend auf englischsprachigen Daten trainiert – Bildbeschreibungen, Tags, Danbooru-Einträge und Community-Uploads gleichermaßen.
+
+**Bei SD 1.5 und Pony (CLIP/Tag-Modelle):** Der Text-Encoder kennt deutsche Wörter kaum oder gar nicht. „Regennasse Gasse" existiert als Token praktisch nicht – die KI ignoriert den Begriff schlicht oder produziert zufälligen Output.
+
+**Bei Flux und SD 3.5 (T5-Modelle):** Der T5-Encoder versteht Deutsch erstaunlich gut und kann einfache Beschreibungen übersetzen. Trotzdem gilt: Je komplexer die Szene, desto stärker bricht die Qualität gegenüber einem äquivalenten englischen Prompt ein.
+
+**Die Regel:** Prompts immer auf Englisch schreiben. Die Benutzeroberfläche, Menüs und Einstellungen können ruhig auf Deutsch sein – aber der Text im Prompt-Feld ist immer Englisch.
+
+---
+
+## 4. Die Master-Schablonen für Prompts
+
+### Schablone A: Die Tag-Struktur (für SD 1.5 & Standard-SDXL)
+
+Diese Modelle lesen keine natürlichen Sätze, sondern verarbeiten gewichtete Fragmente von links nach rechts. Was weiter vorne steht, erhält von der KI das stärkste Gewicht.
+
+#### Warum funktioniert das so? (Das CLIP-Prinzip)
+
+SD 1.5 und SDXL nutzen als „Übersetzer" sogenannte CLIP-Text-Encoder. CLIP versteht keine Grammatik oder logischen Beziehungen. Es sucht im Bild stattdessen nach einzelnen Tags: `man`, `looking`, `pad`, `glowing`, `face`. Weil die KI die logische Beziehung nicht versteht, würfelt sie die Elemente oft durcheinander – deshalb Tags strikt nach Wichtigkeit sortieren und Füllwörter weglassen.
+
+#### Struktur-Aufbau (kommagetrennt)
+
+1. **Hauptmotiv (Wer oder was?):** `1man, cyber detective, mechanical eye`
+2. **Kleidung & physische Details:** `dark trench coat, glowing cybernetic implants`
+3. **Umgebung & Hintergrund:** `inside a dark wet alleyway, neon signs, rain, puddles`
+4. **Kamera & Licht:** `cinematic lighting, close-up shot, neon blue light illuminating his face`
+5. **Stil- & Qualitäts-Tags:** `photorealistic, gritty style, highly detailed`
+
+**Der fertige Prompt:**
+```
+1man, cyber detective, mechanical eye, dark trench coat, glowing cybernetic implants,
+inside a dark wet alleyway, neon signs, rain, puddles, cinematic lighting, close-up shot,
+neon blue light illuminating his face, photorealistic, gritty style, highly detailed
+```
+
+**Negativer Prompt:**
+```
+bad anatomy, deformed hands, extra limbs, blurry, mutation, drawing, illustration,
+painting, bright colors, cheerful
+```
+
+---
+
+### Schablone B: Die Prosa-Struktur (für Flux & SD 3.5)
+
+Moderne Modelle nutzen gigantische Text-Encoder (wie T5-XXL oder in Flux 2 das Mistral-Modell). T5 liest deinen Prompt wie ein Mensch – es versteht Kausalität und räumliche Beziehungen.
+
+**Der Nachteil von Tags:** Wenn du hier `8k, masterpiece` eingibst, versucht T5 diese Wörter logisch zu übersetzen. Die Folge: Die KI generiert oft physischen Text (z. B. das Wort „8k" als Graffiti an der Wand).
+
+**Der fertige Prompt:**
+```
+A gritty, realistic close-up photo of a rugged cyber detective standing in a dark,
+rain-slicked alleyway at night. He is wearing a dark trench coat. In his hands, he holds
+a glowing blue holographic datapad, casting a vibrant cyan light onto his face. In the
+background, blurry neon signs reflect in the wet asphalt.
+```
+
+Kein Negative Prompt nötig – T5 steuert das Modell präzise genug, dass unerwünschte Stile von sich aus ignoriert werden.
+
+---
+
+### C. Die Token-Grenze
+
+**Bei SD 1.5 und SDXL (CLIP-Limit: 75 Tokens):** Wörter am Ende des ersten Token-Pakets verlieren massiv an Gewicht. Prompt so kurz und fokussiert wie möglich halten.
+
+**Bei Flux & SD 3.5 (T5-Limit: 512+ Tokens):** Das Modell liest den gesamten Text flüssig durch. Halbe Buchseiten sind kein Problem.
+
+---
+
+## 5. Das Praxis-Experiment: Ein Motiv, alle Modelle
+
+**Die Kern-Idee:** Ein kybernetischer Detektiv steht in einer dunklen, regennassen Gasse, hält ein leuchtendes blaues Hologramm-Datenpad – dessen Schein sein Gesicht beleuchtet. Im Hintergrund reflektieren Neon-Schilder auf nassem Asphalt.
+
+Derselbe Inhalt, fünf verschiedene Architekturen. Der Vergleich zeigt, wie stark sich die Prompting-Sprache je nach Modell unterscheidet.
+
+---
+
+### A. Für SD 1.5
+
+**Wann wählen?** Du hast wenig VRAM (unter 6 GB), willst schnelle Ergebnisse, oder arbeitest mit älteren Community-Checkpoints. SD 1.5 ist die sparsamste Architektur und hat das größte Ökosystem an LoRAs und Embeddings.
+
+```
+1man, cyber detective, holding glowing blue holographic datapad, cyberpunk style,
+dark rainy alleyway, wet streets, neon reflections, cinematic lighting, photorealistic,
+masterpiece, highly detailed, sharp focus, 8k resolution, award winning photography
+```
+Negativer Prompt: `bad anatomy, deformed hands, extra fingers, blurry, drawing, illustration, painting, bright colors, cheerful, ugly, low resolution`
+
+---
+
+### B. Für SDXL
+
+**Wann wählen?** Du willst fotorealistischen Output mit mehr Detailschärfe als SD 1.5, ohne auf den Prosa-Stil von Flux umsteigen zu müssen. SDXL ist der Allrounder für realistische und semi-realistische Bilder mit 8 GB VRAM.
+
+```
+A cinematic, photorealistic shot of a rugged cyber-detective standing in a dark, rainy
+alleyway. He is holding a glowing holographic datapad that casts neon blue light onto
+his face. Wet asphalt with colorful neon reflections, high-tech details, 35mm photograph.
+```
+Negativer Prompt: `3d render, anime, cartoon, bad anatomy, deformed hands, blurry, low contrast`
+
+---
+
+### C. Für Illustrious XL / NoobAI-XL
+
+**Wann wählen?** Du willst hochwertigen Anime- oder Illustrations-Output, bevorzugst aber einen einfacheren Einstieg gegenüber Pony. Illustrious kennt viele Danbooru-Charaktere und Künstlerstile nativ und ist bei der Prompt-Adherence stärker als Pony.
+
+```
+masterpiece, best quality, amazing quality, very aesthetic, 1boy, solo, cyber detective,
+mechanical eye, dark trench coat, holding glowing blue holographic datapad, standing in
+dark rainy alley, neon light reflections, cyberpunk style, cinematic lighting
+```
+Negativer Prompt: `lowres, bad anatomy, bad hands, extra digits, worst quality, jpeg artifacts, low quality, watermark, blurry`
+
+---
+
+### D. Für Pony V6
+
+**Wann wählen?** Du willst maximale Kontrolle über Stil und Qualität im Anime-Bereich und scheust den Aufwand des Score-Systems nicht. Pony liefert sehr konsistente, saubere Ergebnisse – vorausgesetzt, die Score-Kette sitzt.
+
+```
+score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, source_anime,
+rating_safe, 1boy, solo, cyber detective, holding glowing holographic datapad,
+standing in dark rainy alley, neon lights reflection, cyberpunk style, cinematic atmosphere
+```
+Negativer Prompt: `score_3_up, score_2_up, score_1_up, rating_explicit, rating_questionable, bad anatomy, deformed hands, extra limbs, blurry`
+
+---
+
+### E. Für Pony V7
+
+**Wann wählen?** Du willst den semi-realistischen 3D/CGI-Look im Anime-Umfeld. V7 produziert plastischere, fast render-artige Bilder – ideal wenn du etwas zwischen Anime und Fotorealismus suchst.
+
+```
+style_cluster_1679, rating_safe, 1boy, solo, cyber detective, cyberpunk, holding glowing
+blue datapad, standing in dark rainy alleyway, neon light reflections on wet ground,
+highly detailed skin texture, cinematic lighting
+```
+Negativer Prompt: `style_cluster_1324, rating_explicit, rating_questionable, bad anatomy, deformed hands, blurry`
+
+---
+
+### F. Für Flux.1 / Flux 2 & SD 3.5
+
+**Wann wählen?** Du willst die bestmögliche Bildqualität, hast genug VRAM (12 GB+), und bist bereit, Prompts als echte Sätze zu schreiben. Flux liefert die präziseste Umsetzung komplexer Szenen und räumlicher Beziehungen.
+
+```
+A gritty, highly realistic photo of a rugged cyber-detective standing in a dark,
+rain-slicked alleyway at night. The alley is lit by flickering purple and blue neon signs.
+The detective is looking down at a glowing holographic datapad he is holding in his hands,
+which casts a bright cyan glow onto his face. Water drops are visible on his leather
+jacket, and the reflections on the wet asphalt are sharp and detailed.
+```
+Negativer Prompt: (leer lassen)
+
+---
+
+## 6. Sonderfall: Pony Diffusion (V6 & V7)
+
+Pony-Modelle basieren auf der SDXL- oder AuraFlow-Architektur, wurden aber völlig anders trainiert.
+
+### Das GIGO-Prinzip
+
+Die Entwickler haben die Trainingsbilder nach Qualität bewertet (Note 1 bis 9). Über die Prompts steuern wir, auf welche „Schublade" das Modell zugreifen darf.
+
+```
++-------------------------------------------------------------+
+|                 DAS TRAININGSDATEN-ARCHIV                   |
+|                                                             |
+|  [Schublade score_9]   --> Nur perfekte Meisterwerke        |
+|  [Schublade score_8]   --> Sehr gute, detailreiche Bilder   |
+|  [Schublade score_7]   --> Akzeptable, normale Zeichnungen  |
+|  [Schublade score_4-5] --> Skizzen, Gekritzel, Amateur-Art  |
++-------------------------------------------------------------+
+```
+
+### Warum nicht nur „score_9"?
+
+**1. Overfitting:** In der score_9-Schublade gibt es kaum Vielfalt – Bilder sehen alle identisch aus.
+
+**2. Der Brücken-Effekt:** Seltene Motive existieren nur in den schlechteren Töpfen. Die Kette erlaubt der KI, das Wissen von dort zu holen, es aber im Stil der besten Schubladen zu rendern.
+
+**3. Der Token-Bug in V6:** Die gesamte Kette wurde als ein einziges Token eintrainiert. Nur `score_9` ist deshalb deutlich schwächer als die vollständige Kette.
+
+### A. Score-Tags (V6)
+
+**Pflicht-Präfix:** `score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up`
+
+### B. Source-Tags
+
+- `source_anime` → 2D-Animations/Anime-Look
+- `source_cartoon` → Westlicher Comic-Stil
+- `source_furry` → Anthropomorphe Charaktere
+- `source_pony` → My Little Pony-Stil
+
+### C. Safety Ratings
+
+- `rating_safe` → Jugendfrei (Pflicht für normale Bilder)
+- `rating_questionable` → Leicht anzüglich
+- `rating_explicit` → NSFW
+
+### D. Pony V7: Stil-Cluster
+
+- `style_cluster_1324` → Sauberer, klassischer 2D-Anime-Stil
+- `style_cluster_1679` → Semi-realistisch bis lebensecht
+
+---
+
+## 7. Sonderfall: Illustrious XL & NoobAI-XL
+
+Illustrious XL ist eine Ende 2024 erschienene Modell-Familie, die auf SDXL basiert, aber speziell für hochqualitative Anime- und Illustrationsgrafiken nachtrainiert wurde. NoobAI-XL ist der beliebteste Fork davon und hat sich als eigenständige Kategorie auf Civitai etabliert.
+
+### Wie unterscheidet es sich von Pony?
+
+| | Pony V6 | Illustrious / NoobAI-XL |
+|---|---|---|
+| Qualitätssystem | Score-Kette (`score_9, score_8_up` ...) | Qualitäts-Tags (`masterpiece, best quality` ...) |
+| Prompt-Stil | Danbooru-Tags, kaum Sätze | Danbooru-Tags + etwas natürlichere Sprache möglich |
+| Negative Prompts | Minimal nötig | Empfohlen, ähnlich wie SDXL |
+| Stärke | Sehr konsistenter Stil, viel Kontrolle | Höhere Prompt-Adherence, mehr Stil-Flexibilität |
+| Besonderheit | Score-Bug muss beachtet werden | Kennt viele Danbooru-Charaktere & Künstlerstile nativ |
+
+### Das Qualitäts-Präfix für Illustrious
+
+Statt der Score-Kette setzt du folgende Tags an den Anfang:
+
+```
+masterpiece, best quality, amazing quality, very aesthetic, absurdres
+```
+
+Für NoobAI-XL empfiehlt sich zusätzlich `newest` am Anfang, da das Modell auf neuere Trainingsdaten ausgerichtet ist.
+
+### Negativer Prompt (Illustrious / NoobAI)
+
+```
+lowres, bad anatomy, bad hands, extra digits, multiple views, worst quality,
+jpeg artifacts, low quality, watermark, unfinished, blurry
+```
+
+### Künstlerstile direkt im Prompt
+
+Da Illustrious auf dem Danbooru-Datensatz basiert, kennt es viele Künstlerstile namentlich – oft ohne separates LoRA:
+
+```
+masterpiece, best quality, amazing quality, 1girl, fantasy warrior, glowing sword,
+dark forest, moonlight, in the style of wlop, painterly
+```
+
+### CLIP Skip bei Illustrious / NoobAI
+
+Für Illustrious XL und NoobAI-XL gilt: **CLIP Skip auf 2 setzen** (siehe Kapitel 8G).
+
+---
+
+## 8. Die wichtigsten Stellschrauben (Settings)
+
+Ein guter Prompt bringt nichts, wenn die Einstellungen im UI nicht zur Architektur passen.
+
+### A. VAE (Variational Autoencoder)
+
+Der VAE ist der „Entwickler", der das intern gerechnete Bild in sichtbare Pixel übersetzt. Ein falscher oder fehlender VAE ist bei SD 1.5 der häufigste Grund für ausgewaschene Farben – ein Fehler, den viele fälschlicherweise im Prompt suchen.
+
+- **SD 1.5:** `vae-ft-mse-840000-ema-pruned` oder `blessed2` verwenden.
+- **SDXL:** Meist im Checkpoint integriert. Bei Problemen: `sdxl-vae-fp16-fix`.
+- **Flux:** Fest eingebaut. Kein separater VAE nötig.
+
+### B. CFG Scale (Classifier-Free Guidance)
+
+Der „Striktheits-Regler" – bestimmt, wie eng sich das Modell an den Prompt hält.
+
+- **SD 1.5 & SDXL:** Sweet Spot 5.0 bis 8.0. Unter 4.0 → verwaschen. Über 12.0 → „burnt look".
+- **Flux:** CFG Scale auf 1.0 (klassisches CFG deaktiviert). Guidance Scale separat: 3.5 bis 4.0 für Flux Dev/Flex; Flux Schnell braucht gar keine Guidance.
+
+### C. Sampling Steps
+
+- **SD 1.5 / SDXL:** 20 bis 35 Schritte. Ab 40 kaum noch Qualitätsgewinn.
+- **Flux Dev / Flux 2 Flex:** 20 bis 30 Schritte.
+- **Flux Schnell:** 4 bis 8 Schritte – mehr Schritte verschlechtern das Ergebnis hier sogar.
+
+### D. Sampler & Schedulers
+
+- **SD 1.5 & SDXL (fotorealistisch):** `DPM++ 2M Karras` oder `DPM++ SDE Karras`
+- **Pony / Illustrious (Anime):** `Euler a` oder `DPM++ 2M Karras`
+- **Flux:** `Euler` mit Scheduler `Simple` oder `Beta`
+
+### E. Auflösung & Hi-Res Fix (Die Doppelkopf-Falle)
+
+**Das Problem bei SD 1.5 & SDXL:** Wenn du direkt ein breites 16:9-Format einstellst, beginnt das Modell das Motiv zu spiegeln – zwei Detektive, Doppelköpfe.
+
+**Die Lösung:** Erst in nativer Auflösung generieren (512×512 für SD 1.5, 1024×1024 für SDXL), dann Hi-Res Fix aktivieren. Denoising Strength: 0.3 bis 0.5.
+
+**Flux:** Kein Problem. Resolution Bucketing erlaubt direkt beliebige Seitenverhältnisse.
+
+### F. Seed-Kontrolle
+
+- **Seed = -1:** Jede Generierung produziert ein anderes Bild – gut zum Testen.
+- **Fester Seed:** Ermöglicht kontrolliertes Vergleichen von Prompt-Änderungen.
+- **Variation Strength:** Behält die Grundkomposition des Seeds, erzeugt aber leichte Abwandlungen.
+
+### G. CLIP Skip
+
+CLIP Skip bestimmt, wie viele der letzten Schichten des CLIP-Encoders übersprungen werden. In der Praxis beeinflusst es den Stil erheblich – höhere Werte machen Bilder weicher und abstrakter.
+
+- **SD 1.5:** Standard ist 1. Manche Anime-Checkpoints profitieren von 2.
+- **SDXL:** 1 oder 2, je nach Checkpoint. Modellseite auf Civitai gibt Hinweise.
+- **Pony V6:** CLIP Skip 2 empfohlen.
+- **Illustrious XL / NoobAI-XL:** CLIP Skip 2 ist Standard. Bei Skip 1 wirken Bilder oft zu scharf und verlieren die typische Anime-Weichheit.
+- **Flux:** Nicht relevant – Flux nutzt seinen eigenen Encoder-Stack.
+
+> In Automatic1111 findest du CLIP Skip unter *Settings → Stable Diffusion → CLIP Skip*. In ComfyUI gibt es einen Parameter direkt im CLIP Text Encode Node.
+
+---
+
+## 9. Zusatznetzwerke: LoRAs & Embeddings
+
+### A. LoRA (Low-Rank Adaptation)
+
+Ein LoRA ist ein „Aufsatz-Plugin" – es verändert einen kleinen Teil der Modellgewichte, um ein spezifisches Konzept zu erzwingen (Stil, Charakter, Kleidung, Pose).
+
+**Muss das `<lora:...>`-Tag in den Prompt?**
+
+- **Automatic1111, WebUI-Forge, SD-Next:** JA. Syntax: `<lora:Dateiname:Stärke>` – z. B. `<lora:CyberArmor_v1:0.8>`
+- **ComfyUI:** NEIN. LoRAs werden über physische Nodes eingeklinkt.
+- **Fooocus, Draw Things, Web-Generatoren:** NEIN. Auswahl über Menüs.
+
+**Trigger-Words:** Wenn das LoRA mit Aktivierungswörtern trainiert wurde, müssen diese zwingend im Prompt stehen – sonst ist das LoRA zwar geladen, weiß aber nicht worauf es reagieren soll.
+
+```
+A cinematic shot of a rugged cyber-detective in a dark alleyway,
+wearing <lora:CyberArmor_v1:0.8> cyberarmor-style mechanical plate-armor...
+```
+
+### B. Wie viele LoRAs gleichzeitig?
+
+Das ist eine der häufigsten Fragen – und die Antwort ist: so wenige wie möglich.
+
+**1 LoRA** ist der Idealfall. Das Modell kann sich vollständig auf das Konzept konzentrieren, Stärke frei zwischen 0.6 und 1.0 wählen.
+
+**2 LoRAs** funktionieren gut, wenn sie thematisch unterschiedlich sind – z. B. ein Stil-LoRA und ein Charakter-LoRA. Stärken auf je 0.6 bis 0.8 reduzieren.
+
+**3 LoRAs** ist die praktische Obergrenze für stabile Ergebnisse. Stärken auf je 0.4 bis 0.6 senken. Ab hier beginnen die Konzepte zu „kämpfen" – einzelne LoRAs setzen sich durch oder Stile vermischen sich unkontrolliert.
+
+**Ab 4 LoRAs** wird es zunehmend unvorhersehbar. Die Stärken müssen so weit heruntergeregelt werden (oft unter 0.4), dass der Effekt kaum noch spürbar ist. In den meisten Fällen ist es besser, ein Merge-LoRA zu erstellen oder einen anderen Ansatz zu wählen.
+
+**Die goldene Regel:** Wenn das Bild mit mehreren LoRAs schlechter wird als mit einem, ist die Lösung fast immer, Stärken zu reduzieren und weniger zu laden – nicht, mehr hinzuzufügen.
+
+### C. Embeddings / Textual Inversion
+
+Ein Embedding ist eine „Vokabel-Abkürzung". Heute hauptsächlich als Negative Embeddings eingesetzt: `easynegative`, `bad-hands-5`, `FastNegative` filtern anatomische Fehler heraus.
+
+```
+Negativer Prompt: bad anatomy, extra limbs, bad-hands-5, easynegative
+```
+
+---
+
+## 10. Fortgeschrittene Techniken
+
+### A. Img2Img (Bild-zu-Bild)
+
+Img2Img ist der Workflow, bei dem du ein vorhandenes Bild als Ausgangspunkt nimmst und es durch den Diffusions-Prozess transformierst. Statt mit purem Rauschen zu starten, beginnt das Modell mit deinem Eingabebild – leicht verrauscht – und „denkt es neu".
+
+**Wann nutzt man Img2Img?**
+- Eine Skizze oder ein Konzeptbild in ein fotorealistisches Bild verwandeln
+- Den Stil eines Bildes stark verändern (z. B. von fotorealistisch zu Anime)
+- Ein schwaches Bild aufwerten, ohne komplett neu zu generieren
+- Eine Szene aus einem anderen Winkel neu interpretieren
+
+**Die entscheidende Einstellung: Denoising Strength**
+
+| Denoising | Effekt |
+|---|---|
+| 0.1 – 0.3 | Minimale Änderung. Farben und Struktur bleiben fast identisch. Gut für subtile Stil-Korrekturen. |
+| 0.4 – 0.6 | Mittlere Änderung. Das Motiv bleibt erkennbar, aber Details, Licht und Stil werden deutlich überarbeitet. Sweet Spot für die meisten Anwendungsfälle. |
+| 0.7 – 0.9 | Starke Änderung. Das Modell interpretiert das Bild fast neu. Komposition bleibt grob erhalten, Details können sich stark verschieben. |
+| 1.0 | Entspricht Text-to-Image. Das Eingabebild wird komplett ignoriert. |
+
+**Beispiel – Skizze zu Fotorealismus:**
+Du hast eine Bleistiftskizze deines Detektivs gezeichnet und willst daraus ein fotorealistisches Bild machen.
+- Eingabebild: Bleistiftskizze des Detektivs in der Gasse
+- Denoising: 0.6
+- Prompt: `photorealistic photo of a rugged cyber detective in a dark trench coat, standing in a rainy alleyway, neon light reflections, cinematic lighting, sharp focus`
+
+### B. Inpainting (Bereiche gezielt reparieren)
+
+Du malst den fehlerhaften Bereich im UI aus. Beschreibe nur das, was innerhalb der Maske entstehen soll – nicht den Original-Prompt wiederholen.
+
+- **Falsch:** Kompletten Original-Prompt wiederholen
+- **Richtig:** `a hand holding a glowing blue holographic datapad, detailed skin texture`
+
+Setze „Inpaint area" auf „Only Masked". Denoising Strength: 0.3 bis 0.5.
+
+### C. Outpainting (Bildgrenzen erweitern)
+
+Vergrößert ein Bild, z. B. von 1:1 auf 16:9. Beschreibe die neue Umgebung an den Rändern, erwähne das Hauptmotiv nur minimal. Denoising Strength: 0.6 bis 0.8.
+
+### D. ControlNet
+
+Zusatznetzwerke, die der KI eine feste Geometrie aufzwingen.
+
+| Modell | Funktionsweise | Prompt-Empfehlung |
+|---|---|---|
+| OpenPose | Liest das menschliche Skelett aus | Kleidung, Licht, Ausdruck – keine Körperhaltungs-Verben |
+| Canny / Lineart | Strichzeichnung aller Kanten | Materialien, Farben, Oberflächen, Hintergrund |
+| Depth | 3D-Tiefenkarte | Räumliche Tiefe und Größenverhältnisse |
+
+### E. Prompt-Gewichtung (nur SD 1.5 & SDXL)
+
+- `(holographic datapad:1.2)` → Priorität +20 %
+- `(holographic datapad:0.8)` → Priorität −20 %
+
+Werte über 1.4 führen zu Artefakten. Bei Flux keine Funktion.
+
+### F. Wildcards
+
+```
+1man, cyber detective, wearing a {dark trench coat|brown leather jacket|rugged tactical vest},
+holding a glowing blue holographic datapad...
+```
+
+Funktioniert in Automatic1111/WebUI-Forge mit Wildcard-Extension; in ComfyUI über äquivalente Nodes.
+
+### G. Regional Prompting
+
+Verhindert „Prompt-Bleeding" – Farben oder Elemente, die in Bereiche überschwappen, wo sie nicht hingehören. Teilt den Canvas in Regionen auf (Regional Prompter in A1111/Forge, Attention Masking in ComfyUI).
+
+### H. Der Profi-Workflow: Iterative Bildentwicklung & Charakter-Konsistenz
+
+Alle Techniken aus diesem Kapitel lassen sich zu einem durchgängigen Workflow kombinieren. In der Praxis erstellst du Bilder nicht in einem einzigen Wurf – du baust sie schrittweise auf:
+
+```
++-------------------------------------------------------------+
+| 1. TEXT-TO-IMAGE     --> Der Detektiv entsteht (Alleyway)   |
+|         |                                                   |
+| 2. DETAIL-FIXING     --> ADetailer / FaceDetailer schärfen  |
+|         |                die Augen, Hände und das Gesicht.  |
+|         v                                                   |
+| 3. SCENE TRANSFER    --> Prompt+Seed / Multi-Ref /          |
+|                          IP-Adapter / ReActor / LoRA        |
++-------------------------------------------------------------+
+```
+
+**Phase 1 – Initial-Generierung:** Nimm den passenden Prompt aus Kapitel 5 und generiere dein erstes Bild. Fixiere den Seed (Kapitel 8F), damit spätere Änderungen vergleichbar bleiben.
+
+**Phase 2 – Detail-Fixing (ADetailer / FaceDetailer):** Bei Ganzkörper-Aufnahmen sind Augen oft asymmetrisch oder das Gesicht wirkt verwaschen. In Automatic1111/WebUI-Forge aktivierst du dafür das Plugin ADetailer; in ComfyUI den FaceDetailer-Node aus dem Impact-Pack. Ein YOLO-Detektor sucht automatisch nach Gesichtern und Augen, jagt sie mit einem Mini-Inpainting-Durchlauf (Denoising 0.3 bis 0.45) durch das Netz und fügt sie nahtlos zurück. Im ADetailer-Menü kannst du einen separaten Gesichts-Prompt eintragen:
+
+`close-up of a handsome rugged face, glowing blue mechanical eye, extremely detailed skin texture`
+
+**Phase 3 – Szenenwechsel (Identity Locking):**
+
+Das ist der Punkt, an dem die meisten Einsteiger frustriert aufgeben. Das Problem: Jede neue Generierung ist für das Modell ein völlig neuer Startpunkt. Ohne Hilfsmittel produziert die KI bei „cyber detective in a noodle bar" ein komplett anderes Gesicht als zuvor – weil sie keine Erinnerung an das erste Bild hat. Es gibt vier Wege, das zu lösen, geordnet von einfach bis aufwendig:
+
+**Methode 0 – Prompt-Konsistenz + fester Seed (Einstieg für Anfänger):** Bevor du zu technischen Hilfsmitteln greifst, hilft oft schon ein sehr präziser, immer identisch aufgebauter Charakter-Prompt kombiniert mit einem fixen Seed. Beschreibe das Gesicht so konkret wie möglich – Knochenstruktur, Augenform, Haarfarbe, markante Details – und verwende diesen Block in jedem Prompt. Wechselst du nur den Hintergrund und behältst Seed + Charakter-Block, bleibt das Gesicht oft erstaunlich stabil. Das funktioniert am besten bei Flux, das präzise Beschreibungen wörtlich umsetzt, und ist der sinnvollste erste Schritt bevor man zu komplexeren Werkzeugen greift.
+
+**Methode A – Native Multi-Reference (Flux 2 / Flux Kontext):** Referenzbild in den Referenz-Slot laden, Prompt bezieht sich direkt darauf. Kein zusätzliches Training nötig – das Modell liest das Gesicht direkt aus dem Bild.
+
+**Methode B – IP-Adapter & PuLID (SDXL / Flux Dev):** Extrahiert die Gesichtsmerkmale des Detektivs mathematisch und speist sie direkt in die Berechnung ein, während das neue Bild entsteht. Der Text-Prompt beschreibt nur noch die neue Szene.
+
+**Methode C – ReActor (letzter Ausweg):** Gesichts-Swap via InsightFace. **Hinweis:** Technik ist identisch mit Deepfake-Mechanismen – ausschließlich für eigene fiktive Charaktere verwenden.
+
+**Methode D – Eigenes Charakter-LoRA trainieren (Königsweg):** Wenn du einen Charakter wirklich konsequent durch viele Szenen, Stile und Modelle konsistent halten willst, ist ein eigenes LoRA die langfristig beste Lösung. Du trainierst das Modell mit 15–30 sorgfältig ausgewählten Bildern deines Charakters, und das LoRA lernt dessen Gesichtszüge als festes Konzept. Danach reicht ein Trigger-Word im Prompt, und der Charakter erscheint konsistent – egal in welcher Szene. Das Training läuft über Tools wie Kohya SS (lokal) oder den integrierten Trainer in Fooocus. LoRA-Training ist ein umfangreiches Thema und wird in einer späteren Version dieses Leitfadens ausführlich behandelt.
+
+---
+
+## 11. Szenen, Aktionen & Umgebungen
+
+### A. Der Unterschied zwischen CLIP und T5 beim Beschreiben von Szenen
+
+Bei CLIP-Modellen (SD 1.5, SDXL, Pony, Illustrious) gilt: Das Modell sieht kein Video, sondern ein Standbild. Es versteht keine Handlungen, sondern nur visuelle Zustände. Der häufigste Fehler ist, eine Aktion als Verb zu beschreiben statt als sichtbares Ergebnis.
+
+- **Schwach:** `is running` → CLIP weiß nicht wie Laufen aussieht
+- **Stark:** `mid-stride, one foot off the ground, motion blur on legs, leaning forward` → das ist was die Kamera sieht
+
+Bei Flux und SD 3.5 (T5) funktionieren Verben und Aktionsbeschreibungen deutlich besser, weil T5 echte Grammatik versteht. Trotzdem gilt: Je visueller und konkreter, desto zuverlässiger das Ergebnis.
+
+### B. Umgebungen aufbauen
+
+Eine gute Umgebungsbeschreibung besteht aus vier Ebenen:
+
+**1. Ort:** Was ist der grundsätzliche Schauplatz?
+`dense forest`, `busy city street`, `empty rooftop`, `indoor gym`
+
+**2. Wetter & Atmosphäre:** Welche Stimmung hat die Szene?
+`heavy rain, wet leaves`, `golden hour sunlight filtering through trees`, `thick morning fog`, `overcast grey sky`
+
+**3. Licht:** Woher kommt das Licht, was beleuchtet es?
+`dappled sunlight through tree canopy`, `harsh street lamp casting long shadows`, `soft diffused daylight`, `backlit by setting sun`
+
+**4. Tiefenschärfe & Kamera:** Wie ist das Bild komponiert?
+`shallow depth of field, bokeh background`, `wide angle shot, environment in focus`, `telephoto compression`, `low angle shot looking up`
+
+**Beispiel – Joggen im Wald:**
+
+SD 1.5 / SDXL:
+```
+1woman, jogging, athletic wear, dense forest, dirt path, dappled sunlight through trees,
+morning mist, motion blur on legs, mid-stride, shallow depth of field, bokeh background,
+dynamic angle, photorealistic
+```
+
+Flux:
+```
+A photorealistic wide-angle shot of a woman jogging along a narrow dirt path through a
+dense forest in the early morning. Dappled sunlight filters through the tree canopy above,
+casting moving light patterns on the path. Light morning mist hangs between the trees in
+the background. Her hair and clothes show slight motion blur from the movement.
+```
+
+**Beispiel – Auf der Straße im Regen:**
+
+SD 1.5 / SDXL:
+```
+1woman, walking, holding umbrella, busy city street, heavy rain, wet asphalt,
+reflections of street lights in puddles, nighttime, neon signs, steam from grates,
+cinematic lighting, 35mm photograph, shallow depth of field
+```
+
+Flux:
+```
+A cinematic nighttime photo of a woman walking alone down a busy city street in heavy rain.
+She is holding a dark umbrella. The wet asphalt reflects the warm glow of street lamps and
+neon signs. Steam rises from metal grates in the ground. Other pedestrians are visible as
+blurry silhouettes in the background.
+```
+
+### C. Aktionen & Posen präzise beschreiben
+
+Das Modell generiert ein Standbild – beschreibe deshalb immer den sichtbaren Zustand, nicht die Bewegung.
+
+| Intention | Schwache Beschreibung | Starke Beschreibung |
+|---|---|---|
+| Läuft | `is running` | `mid-stride, one foot raised, forward lean, motion blur on legs` |
+| Springt | `is jumping` | `airborne, both feet off ground, arms raised, peak of jump` |
+| Sitzt entspannt | `is sitting` | `seated, leaning back, legs crossed, relaxed posture, arms resting` |
+| Schaut sich um | `looks back` | `turning head over right shoulder, eyes looking back, body still facing forward` |
+| Kämpft | `is fighting` | `right fist extended mid-punch, weight shifted forward, opponent blurred in background` |
+
+**Körperhaltung mit ControlNet absichern:** Wenn eine bestimmte Pose absolut sitzen muss, ist OpenPose (Kapitel 10D) die zuverlässigere Lösung als ein Prompt allein – besonders bei CLIP-Modellen.
+
+### D. Tageszeit & Lichtstimmung als Stilmittel
+
+Die Tageszeit ist einer der stärksten Stimmungsregler im Prompt. Ein paar bewährte Kombinationen:
+
+**Goldene Stunde (kurz nach Sonnenaufgang / vor Sonnenuntergang):**
+`golden hour lighting, warm orange and amber tones, long soft shadows, lens flare`
+
+**Mittag / Harsh Sunlight:**
+`harsh midday sun, high contrast, hard shadows, bright highlights, bleached colors`
+
+**Blaue Stunde (kurz nach Sonnenuntergang):**
+`blue hour, deep blue sky, city lights beginning to glow, soft transition light`
+
+**Nacht / Künstliches Licht:**
+`nighttime, artificial lighting, street lamps, neon signs, high ISO grain, dark shadows`
+
+**Bewölkt / Diffuses Licht:**
+`overcast sky, diffused soft light, no harsh shadows, muted colors, flat even lighting`
+
+---
+
+## 12. Kleidung & Accessoires
+
+### A. Materialien präzise benennen
+
+CLIP-Modelle assoziieren Begriffe mit visuellen Texturen aus ihrem Training. Je spezifischer das Material, desto zuverlässiger das Ergebnis.
+
+| Vage | Präzise |
+|---|---|
+| `jacket` | `worn leather biker jacket, scuffed surface, brass zipper` |
+| `dress` | `flowing silk evening gown, deep burgundy, low back` |
+| `shoes` | `white canvas sneakers, dirty soles, untied laces` |
+| `bag` | `battered brown leather messenger bag, brass buckle, overstuffed` |
+
+### B. Kleidung schichtenweise beschreiben
+
+Komplexe Outfits funktionieren besser, wenn du sie von innen nach außen aufbaust – genau wie beim echten Anziehen:
+
+```
+white fitted turtleneck sweater, dark navy wool overcoat, belted at waist,
+dark slim-fit trousers, white leather oxford shoes, silver watch on left wrist,
+small gold hoop earrings
+```
+
+Bei Flux darf das ruhig ein Satz sein:
+```
+She is wearing a white fitted turtleneck sweater under a long dark navy wool overcoat
+belted at the waist, paired with dark slim-fit trousers and white leather oxford shoes.
+A silver watch is visible on her left wrist.
+```
+
+### C. Muster & Prints
+
+Muster sind für CLIP-Modelle schwieriger als einfarbige Kleidung. Ein paar Techniken:
+
+- **Einfache Muster benennen:** `plaid shirt`, `striped socks`, `polka dot dress`, `floral print blouse` funktionieren gut weil sie im Training häufig vorkamen
+- **Komplexe Muster beschreiben:** `camouflage jacket, green and brown pattern`, `paisley scarf, muted earth tones`
+- **Bei Flux:** Muster können ausführlicher beschrieben werden: `a button-up shirt with a small repeating geometric diamond pattern in navy and white`
+
+### D. Accessoires & Details
+
+Accessoires gehen in CLIP-Prompts oft unter, weil sie Token-Gewicht von der Person selbst stehlen. Lösungen:
+
+- **Gewichtung erhöhen:** `(silver chain necklace:1.2)` für SDXL/SD 1.5
+- **Position beschreiben:** `necklace around her neck`, `bracelet on right wrist`, `ring on index finger` – räumliche Angaben helfen dem Modell
+- **Bei Flux:** Accessoires in eigene Sätze auslagern: `Around her neck hangs a delicate silver chain with a small pendant.`
+
+### E. Kleidung und Kontext
+
+Ein häufiger Fehler: Die Kleidung passt nicht zur Szene und das Modell „korrigiert" sie heimlich. Ein Businessanzug im Regenwald, ein Bikini im Schneesturm – das Modell versucht die kognitive Dissonanz aufzulösen, oft zu deinen Ungunsten. Wenn du bewusst Kontraste willst, betone sie explizit:
+
+SD 1.5 / SDXL: `(elegant evening gown:1.3), incongruously, muddy forest floor, rain`
+Flux: `Despite the muddy forest floor and pouring rain, she is wearing an elegant floor-length evening gown, completely out of place in the surroundings.`
+
+### F. Wildcards für Outfit-Variation
+
+Wildcards (Kapitel 10F) und Kleidung passen besonders gut zusammen. Die Idee: Du hast einen festen Charakter, willst aber viele verschiedene Looks automatisch generieren – ohne jeden Prompt manuell zu schreiben.
+
+Du strukturierst das Outfit in Ebenen und gibst pro Ebene mehrere Alternativen an:
+
+```
+1woman, cyber detective, mechanical eye,
+{worn leather biker jacket|elegant wool overcoat|military field jacket|dark hoodie},
+{slim dark jeans|tailored trousers|cargo pants|leather skirt},
+{white canvas sneakers|black leather boots|platform shoes|ankle boots},
+{silver chain necklace|no jewelry|small gold earrings|layered necklaces},
+dark rainy alleyway, neon lights, cinematic lighting, photorealistic
+```
+
+Bei 10 Bildern in einem Batch würfelt das System für jede Ebene unabhängig – du bekommst 10 verschiedene Looks desselben Charakters in derselben Szene, vollautomatisch. Das ist einer der praktischsten Anwendungsfälle für Wildcards überhaupt, weil Kleidung sich so natürlich in Kategorien aufteilt.
+
+**Tipp:** Halte Charakter-Block und Szenen-Block fest, variiere nur den Outfit-Block. So bleibt die Komposition stabil und nur die Kleidung ändert sich – ideal um schnell einen Kleidungsstil für einen Charakter zu finden.
+
+---
+
+## 13. Mehrere Personen
+
+Das ist eines der schwierigsten Themen in Stable Diffusion – besonders bei CLIP-Modellen. Das Kernproblem: CLIP versteht keine Besitzverhältnisse. Wenn du `1man with red hair, 1woman with blonde hair` schreibst, kann das Modell die Eigenschaften frei zwischen den Personen verteilen. Du bekommst womöglich einen blonden Mann und eine rothaarige Frau.
+
+### A. Das Vermischungs-Problem bei CLIP-Modellen
+
+Je ähnlicher sich zwei Personen im Prompt sind, desto stärker vermischen ihre Eigenschaften. Das Modell liest `red hair` und `blonde hair` als zwei gleichwertige Tags – ohne zu wissen, wer was trägt.
+
+**Schlechter Ansatz:**
+```
+1man, red hair, blue jacket, 1woman, blonde hair, red dress, standing together
+```
+
+**Besser – klare Positionierung:**
+```
+on the left: 1man, red hair, blue jacket | on the right: 1woman, blonde hair, red dress
+```
+
+**Noch besser – AND-Syntax (nur in A1111/Forge):**
+```
+1man, red hair, blue jacket AND 1woman, blonde hair, red dress, standing together
+```
+Die AND-Syntax weist jeder Person einen eigenen Prompt-Strang zu. Das Modell berechnet beide getrennt und kombiniert sie – deutlich weniger Vermischung.
+
+### B. Regional Prompting für zwei Personen
+
+Die zuverlässigste Methode bei CLIP-Modellen ist Regional Prompting (Kapitel 10G). Du teilst den Canvas in zwei Hälften:
+
+- **Globale Ebene:** `2people, standing together, city street, nighttime, cinematic lighting`
+- **Linke Region:** `1man, short red hair, worn blue denim jacket, hands in pockets`
+- **Rechte Region:** `1woman, long blonde hair, elegant red dress, holding a clutch bag`
+
+Das Modell zeichnet beide Personen getrennt in ihren Regionen und fügt sie dann zusammen. Kein Eigenschafts-Swap mehr.
+
+### C. Anzahl der Personen klar benennen
+
+Bei Tag-Modellen (SD 1.5, SDXL, Pony, Illustrious) ist der Personen-Count-Tag wichtig:
+
+- `1girl`, `1boy`, `1man`, `1woman` → eine Person
+- `2girls`, `2boys`, `2people` → zwei Personen
+- `group of people`, `crowd` → viele Personen (wenig Kontrolle)
+
+Ohne Count-Tag rät das Modell – und liegt oft falsch.
+
+### D. Interaktionen zwischen Personen
+
+Wenn zwei Personen miteinander interagieren (sprechen, sich ansehen, sich berühren), braucht das Modell sehr präzise räumliche Angaben:
+
+SD 1.5 / SDXL:
+```
+2people, 1man on left facing right, 1woman on right facing left, eye contact,
+leaning toward each other, intimate conversation, close distance
+```
+
+Flux (hier klar im Vorteil):
+```
+Two people are standing close together on a rainy street corner. The man on the left,
+wearing a dark jacket, is leaning slightly toward the woman on the right, who is
+looking up at him. They are making eye contact. Their faces are about 30 centimeters apart.
+```
+
+### E. Mehr als zwei Personen
+
+Ab drei Personen verliert CLIP die Kontrolle über individuelle Eigenschaften fast vollständig. Strategien:
+
+**Strategie 1 – Gruppe ohne individuelle Details:** Beschreibe die Gruppe als Ganzes und verzichte auf personenspezifische Eigenschaften. `group of five friends, casual clothing, laughing, park setting` funktioniert besser als jede Person einzeln zu beschreiben.
+
+**Strategie 2 – Hauptperson + Hintergrundpersonen:** Beschreibe nur eine Person detailliert, der Rest bleibt vage. `1woman in red dress, surrounded by blurry crowd, shallow depth of field` – die Tiefenschärfe macht die Hintergrundpersonen zum Beiwerk.
+
+**Strategie 3 – Compositing:** Generiere jede Person einzeln und kombiniere sie in einem Bildbearbeitungsprogramm oder via Inpainting. Aufwendig, aber die einzige Methode für vollständige Kontrolle über mehr als zwei Personen.
+
+**Bei Flux:** Bis zu drei Personen mit individuellen Beschreibungen sind oft noch zuverlässig möglich, wenn jede Person einen eigenen Satz bekommt und räumliche Positionen klar benannt sind.
+
+---
+
+## 14. Kameraeinstellungen
+
+Kamera-Tags sind einer der stärksten und am meisten unterschätzten Hebel im Prompting. Sie bestimmen nicht nur wie das Bild aussieht – sie beeinflussen auch, wie viel Körper sichtbar ist, welche Perspektive eingenommen wird, und wie dramatisch oder natürlich die Szene wirkt.
+
+### A. Der sichere Standard-Set
+
+Wer nicht weiß wo er anfangen soll, ist mit diesem Set gut bedient – es funktioniert bei fast allen Motiven zuverlässig und produziert angenehm komponierte Bilder:
+
+```
+35mm photograph, eye level, medium shot, slight depth of field, natural lighting
+```
+
+Für fotorealistischen Output noch ergänzen: `shot on Canon EOS R5` oder `shot on Sony A7IV` – diese Kamera-Tags trainieren das Modell auf die typische Ästhetik moderner Vollformatkameras.
+
+### B. Bildausschnitt (Framing)
+
+Der Ausschnitt bestimmt, wie viel vom Körper und der Umgebung sichtbar ist.
+
+| Tag | Was sichtbar ist | Wann sinnvoll |
+|---|---|---|
+| `extreme close-up` | Nur ein Detail (Auge, Hand, Mund) | Emotionale Intensität, Texturen |
+| `close-up` | Gesicht und Schultern | Portraits, Emotionen |
+| `medium close-up` | Brust aufwärts | Gespräche, Charakterportraits |
+| `medium shot` | Hüfte aufwärts | Allrounder, natürliche Darstellung |
+| `medium full shot` | Knie aufwärts | Outfit sichtbar, noch Nähe |
+| `full shot` | Ganzer Körper | Outfits, Posen, Umgebung |
+| `wide shot` | Person klein im Bild, Umgebung dominiert | Landschaften, Einsamkeit, Kontext |
+| `establishing shot` | Sehr weit, zeigt den gesamten Schauplatz | Ort einführen, Größenverhältnisse |
+
+### C. Kameraperspektive & Winkel
+
+Der Winkel verändert die Wirkung einer Szene fundamental.
+
+| Tag | Effekt |
+|---|---|
+| `eye level` | Neutral, natürlich, auf Augenhöhe mit dem Motiv |
+| `low angle shot` | Kamera schaut nach oben – macht Personen imposant, mächtig, bedrohlich |
+| `high angle shot` | Kamera schaut nach unten – macht Personen klein, verletzlich, überwältigbar |
+| `bird's eye view` / `overhead shot` | Komplett von oben – abstrakt, zeigt Muster und Anordnungen |
+| `worm's eye view` | Extrem von unten – dramatisch, verzerrend, ungewöhnlich |
+| `dutch angle` | Schräg geneigte Kamera – Unruhe, Spannung, Ungleichgewicht |
+| `over the shoulder shot` | Kamera hinter einer Schulter – Gespräche, Blickrichtung |
+
+### D. Brennweite & Optische Wirkung
+
+Die Brennweite beeinflusst Kompression, Verzerrung und Tiefenwirkung – auch wenn du keine echte Kamera nutzt, reagieren Modelle zuverlässig auf diese Tags.
+
+| Brennweite | Wirkung | Typischer Einsatz |
+|---|---|---|
+| `14mm` / `16mm` | Extreme Weitwinkel-Verzerrung, große Umgebung | Architektur, dramatische Landschaften |
+| `24mm` | Weiter Blickwinkel, leichte Verzerrung | Umgebungs-Portraits, Straßenfotografie |
+| `35mm` | Natürlich, nah am menschlichen Sehen | Allrounder, Reportage-Stil |
+| `50mm` | Neutral, keine Verzerrung | Klassische Portraits, natürlichste Wirkung |
+| `85mm` | Leichte Kompression, schmeichelhaft | Portrait-Standard, flacher Hintergrund |
+| `135mm` | Starke Kompression, cremiges Bokeh | Enge Portraits, Subjekt vom Hintergrund getrennt |
+| `200mm+` | Extreme Kompression, Hintergrund rückt nah | Sportfotografie, isoliertes Motiv |
+
+### E. Tiefenschärfe & Bokeh
+
+Tiefenschärfe ist einer der mächtigsten Kompositions-Regler – sie lenkt den Blick auf das Wesentliche.
+
+- `shallow depth of field, bokeh background` → Hintergrund unscharf, Motiv scharf – klassischer Portrait-Look
+- `deep depth of field` → Alles scharf – Landschaft, Architektur, Dokumentarfotografie
+- `f/1.4, bokeh` → Sehr offene Blende, extremes Bokeh – Modell simuliert Linseneigenschaften
+- `f/8, everything in focus` → Geschlossene Blende – maximale Schärfentiefe
+- `tilt-shift` → Nur ein horizontaler Streifen scharf – macht reale Szenen wie Miniaturen
+
+### F. Filmische Stile & Fotografie-Referenzen
+
+Bestimmte Stil-Tags lösen beim Modell komplexe visuelle Muster aus, die schwer durch einzelne Tags zu replizieren wären:
+
+- `35mm film, grain, cinematic` → Analoger Film-Look mit Korn
+- `Kodak Portra 400` → Warme, hautfreundliche Farben, typischer Analog-Portrait-Film
+- `Fujifilm Velvia` → Knallbunte, gesättigte Farben, typisch für Naturfotos
+- `daguerreotype` → Alter Sepia-Look, 19. Jahrhundert
+- `shot on iPhone` → Typischer Smartphone-Look, weniger Tiefenschärfe, schärfer
+- `surveillance camera` → Low-Resolution-Look, Weitwinkel, Überwachungskamera-Ästhetik
+- `infrared photography` → Weiße Blätter, dunkler Himmel, surrealer Look
+
+---
+
+## 15. Stilangaben & Künstler-Referenzen
+
+Stilangaben sind der schnellste Weg, einem Bild eine bestimmte Ästhetik zu geben – oft mächtiger als viele einzelne Beschreibungs-Tags zusammen.
+
+### A. Medium & Technik
+
+Das Medium beschreibt womit das Bild „gemalt" oder „aufgenommen" wurde – real oder fiktiv.
+
+**Fotorealistisch:**
+`photorealistic`, `hyperrealistic`, `documentary photography`, `editorial photography`, `fashion photography`
+
+**Gemalte Medien:**
+`oil painting`, `watercolor`, `gouache`, `acrylic painting`, `pastel drawing`, `charcoal sketch`, `pencil drawing`, `ink wash`
+
+**Digital:**
+`digital art`, `digital painting`, `concept art`, `matte painting`, `3D render`, `CGI`, `unreal engine render`
+
+**Illustrativ:**
+`illustration`, `book illustration`, `children's book illustration`, `vector art`, `flat design`, `sticker art`
+
+### B. Kunststile & Epochen
+
+Historische und stilistische Referenzen aktivieren komplexe Muster aus dem Training:
+
+- `art nouveau` → Organische Formen, florale Ornamente, Mucha-Stil
+- `art deco` → Geometrisch, elegant, 1920er/30er Jahre
+- `impressionism` → Weiche Pinselstriche, Licht und Atmosphäre, Monet-Stil
+- `baroque` → Dramatisch, kontrastreich, Chiaroscuro-Licht
+- `ukiyo-e` → Japanischer Holzschnitt-Stil
+- `bauhaus` → Minimalistisch, funktional, geometrisch
+- `cyberpunk` → Neon, Dystopie, High-Tech/Low-Life
+- `solarpunk` → Grün, optimistisch, organische Zukunft
+- `dark fantasy` → Düster, atmosphärisch, mittelalterlich
+- `film noir` → Schwarz-Weiß, harte Schatten, dramatisches Licht
+
+### C. Künstler-Referenzen
+
+Künstlernamen sind bei Modellen mit Danbooru-Training (Illustrious, NoobAI) besonders wirksam. Bei fotorealistischen Modellen (SD 1.5, SDXL, Flux) funktionieren vor allem Fotografen-Referenzen.
+
+**Wichtiger Hinweis:** Künstler-Referenzen sind ethisch umstritten, weil lebende Künstler nicht in ihr Training eingewilligt haben. Viele Community-Checkpoints haben bestimmte Namen auf Blocklisten. Verwende sie mit Bedacht.
+
+**Illustration / Concept Art:**
+`in the style of artgerm`, `wlop`, `rossdraws`, `loish`, `sakimichan`
+
+**Fotografie:**
+`in the style of Annie Leibovitz` (Portraits), `Steve McCurry` (Reportage), `Ansel Adams` (Schwarzweiß-Landschaft)
+
+**Historische Malerei (unbedenklich):**
+`in the style of Rembrandt`, `Vermeer`, `Caravaggio`, `Monet`, `Van Gogh`
+
+### D. Stimmungs- & Atmosphäre-Tags
+
+Diese Tags beschreiben keine konkreten Elemente, sondern eine Gesamtstimmung – das Modell interpretiert sie als visuelle Atmosphäre:
+
+`ethereal`, `melancholic`, `ominous`, `serene`, `nostalgic`, `whimsical`, `gritty`, `epic`, `intimate`, `surreal`
+
+Kombiniert mit einem Medium besonders wirksam: `melancholic watercolor`, `ominous oil painting`, `ethereal digital art`
+
+### E. Stilangaben bei verschiedenen Architekturen
+
+- **SD 1.5 / SDXL:** Stil-Tags als kommagetrennte Tags, gerne mit Gewichtung: `(oil painting:1.2), impressionist style`
+- **Pony:** Stil-Tags ergänzen die Score-Kette, aber source_anime und source_cartoon dominieren bereits den Grundstil
+- **Illustrious / NoobAI:** Künstlernamen besonders wirksam wegen Danbooru-Training – direkt nach dem Qualitäts-Präfix
+- **Flux:** Stil in natürliche Sprache einbauen: `painted in a loose impressionist style with visible brushstrokes and soft, diffused light`
+
+---
+
+## 16. Negative Prompts – Strategie statt Cargo-Cult
+
+Negative Prompts sind ein oft missverstandenes Werkzeug. Viele kopieren lange Listen aus dem Internet, ohne zu verstehen was wann wirklich hilft.
+
+### A. Wann braucht man Negative Prompts?
+
+| Architektur | Negative Prompts | Begründung |
+|---|---|---|
+| SD 1.5 | Pflicht | CLIP ohne Negative Prompts driftet in anatomische Fehler |
+| SDXL | Empfohlen | Verbessert Anatomie und Stil-Kontrolle deutlich |
+| Pony V6/V7 | Minimal | Score-Tags übernehmen die Qualitätskontrolle |
+| Illustrious / NoobAI | Empfohlen | Ähnlich SDXL – Qualitäts-Tags allein reichen nicht immer |
+| Flux / SD 3.5 | Weglassen | T5 ignoriert oder verwirrt sich durch Negative Prompts |
+
+### B. Die drei Kategorien sinnvoller Negativer Prompts
+
+**1. Anatomische Korrektoren** – das Wichtigste überhaupt:
+```
+bad anatomy, deformed hands, extra fingers, missing fingers, extra limbs,
+fused fingers, malformed hands, bad proportions
+```
+
+**2. Qualitäts-Filter** – bei SD 1.5 sinnvoll, bei SDXL weniger nötig:
+```
+blurry, low resolution, jpeg artifacts, watermark, signature, text, logo
+```
+
+**3. Stil-Ausschlüsse** – wenn das Modell in einen falschen Stil driftet:
+```
+anime, cartoon, 3d render, painting, illustration
+```
+oder umgekehrt:
+```
+photorealistic, photograph, realistic
+```
+
+### C. Was meistens Cargo-Cult ist
+
+Folgende Tags tauchen in fast jeder kopierten Negativ-Liste auf, bringen aber bei modernen Modellen kaum messbare Verbesserung:
+
+- `ugly, gross, disgusting` → zu vage, das Modell weiß nicht was damit gemeint ist
+- `duplicate, multiple images` → nur relevant bei sehr alten SD-1.5-Checkpoints
+- `lowres` → bei SDXL/Flux irrelevant wenn die Auflösung korrekt eingestellt ist
+- `bad art, amateur` → subjektiv, keine klare visuelle Entsprechung im Training
+
+### D. Negative Embeddings als Abkürzung
+
+Statt langer Listen ist ein Negatives Embedding oft effizienter – es filtert hunderte bekannte Fehlermuster in einem einzigen Token:
+
+- `easynegative` → Allrounder für SD 1.5
+- `bad-hands-5` → Speziell für Hände bei SD 1.5
+- `FastNegativeV2` → Moderner, auch für SDXL geeignet
+
+Einfach den Namen in den Negativen Prompt schreiben – das Embedding muss vorher heruntergeladen und im UI unter dem richtigen Ordner abgelegt sein.
+
+### E. Der minimale Standard-Negative Prompt
+
+Für die meisten fotorealistischen Bilder mit SD 1.5 oder SDXL reicht dieser kompakte Set:
+
+```
+bad anatomy, deformed hands, extra fingers, blurry, watermark, (worst quality, low quality:1.4)
+```
+
+Bei Anime-Modellen (Pony, Illustrious) stattdessen:
+```
+bad anatomy, bad hands, extra digits, worst quality, low quality, jpeg artifacts, watermark
+```
+
+---
+
+## 17. Troubleshooting
+
+### Das Bild ist komplett schwarz oder grau
+Fast immer ein VAE-Problem. Kompatiblen VAE nachladen. Bei SDXL: `sdxl-vae-fp16-fix`.
+
+### CUDA out of memory / VRAM-Fehler
+1. Auflösung reduzieren, dann mit Hi-Res Fix hochskalieren.
+2. In A1111: `--medvram` oder `--lowvram` als Startargument.
+3. In ComfyUI: „Enable Tiled VAE Decode" aktivieren.
+4. Batch Size auf 1 reduzieren.
+
+### Doppelköpfe / gespiegelte Motive
+Falsches Seitenverhältnis für das Modell. Hi-Res Fix nutzen – erst quadratisch generieren, dann hochskalieren.
+
+### Der Prompt wird ignoriert
+- CFG zu niedrig (unter 4.0) → heraufsetzen
+- Token-Limit überschritten → Prompt kürzen, wichtige Tags nach vorne
+- Falscher Prompt-Stil für die Architektur (Tags bei Flux, Prosa bei SD 1.5)
+- Bei Pony: Score-Kette fehlt
+
+### Gesichter / Hände entstellt
+- SD 1.5/SDXL: Negative Embeddings (`bad-hands-5`, `easynegative`) + ADetailer
+- Flux: Hände explizit beschreiben: `his hands are resting flat on the table, five fingers visible`
+- Inpainting Denoising nicht über 0.45 – sonst wirkt das Gesicht wie eine andere Person
+
+### Farben matschig / ausgewaschen
+VAE fehlt oder falsch. Bei SDXL: native 1024×1024 verwenden, nicht kleiner.
+
+### Flux generiert Text/Schrift im Bild
+Tags wie `8k`, `masterpiece` entfernen. Stattdessen beschreibende Prosa nutzen.
+
+### Mehrere LoRAs kämpfen gegeneinander
+Stärken aller LoRAs reduzieren (auf 0.4 bis 0.6). Weniger LoRAs laden, nicht mehr hinzufügen.
+
+---
+
+## 18. Glossar
+
+**Batch Size:** Anzahl der Bilder, die parallel in einem Durchlauf generiert werden. Mehr = mehr VRAM-Verbrauch.
+
+**Checkpoint:** Ein vollständiges, einsatzbereites Modell – entweder Basismodell oder Fine-Tune/Merge. Dateiendung meist `.safetensors`.
+
+**CLIP:** Text-Encoder von OpenAI. Verarbeitet Prompts als gewichtete Tags. Genutzt in SD 1.5 und SDXL. Versteht keine Grammatik.
+
+**CLIP Skip:** Bestimmt, wie viele der letzten Encoder-Schichten übersprungen werden. Beeinflusst den Stil (weicher bei höherem Wert).
+
+**CFG Scale:** Classifier-Free Guidance. Steuert, wie streng sich das Modell an den Prompt hält.
+
+**ControlNet:** Zusatznetzwerk, das dem Modell eine feste Geometrie (Pose, Kanten, Tiefe) vorgibt.
+
+**Danbooru:** Japanische Anime-Bilderdatenbank, deren Tag-System das Prompting von Anime-Modellen (Pony, Illustrious) dominiert.
+
+**Denoising Strength:** Bei Img2Img und Inpainting: wie stark das Modell das Eingabebild verändert. 0 = keine Änderung, 1 = komplette Neugenerierung.
+
+**Embedding / Textual Inversion:** Trainierte Kurzform für komplexe Konzepte. Heute meist als Negativ-Embedding eingesetzt.
+
+**Fine-Tune:** Ein Modell, das auf einem Basismodell aufbaut und auf einem spezifischen Datensatz weitertrainiert wurde.
+
+**Hi-Res Fix:** Zweistufiger Prozess: erst in nativer Auflösung generieren, dann hochskalieren. Verhindert anatomische Fehler bei nicht-quadratischen Formaten.
+
+**Img2Img:** Workflow, bei dem ein vorhandenes Bild als Ausgangspunkt für die Generierung dient.
+
+**Latent Space:** Der mathematische Raum, in dem das Modell intern rechnet. Bilder existieren dort als Vektoren, nicht als Pixel.
+
+**LoRA (Low-Rank Adaptation):** Kleines Zusatznetzwerk, das einen winzigen Prozentsatz der Modellgewichte verändert, um spezifische Konzepte zu erzwingen.
+
+**Merge:** Ein Checkpoint, der durch mathematisches Mischen mehrerer Modelle entstanden ist.
+
+**Negativer Prompt:** Liste von Begriffen, die das Modell im Bild vermeiden soll. Bei SD 1.5/SDXL essenziell, bei Flux kontraproduktiv.
+
+**NoobAI-XL:** Populärer Fork von Illustrious XL mit leicht verändertem Training-Ansatz.
+
+**Resolution Bucketing:** Trainingstechnik, bei der ein Modell auf vielen verschiedenen Seitenverhältnissen gleichzeitig trainiert wird. Flux nutzt dies – daher keine Doppelkopf-Probleme.
+
+**SafeTensors:** Sicheres Dateiformat für Modelle. Kann keinen ausführbaren Code enthalten – immer gegenüber `.ckpt` bevorzugen.
+
+**Sampler / Scheduler:** Die mathematische Methode, mit der das Modell Rauschen schrittweise in ein Bild umwandelt.
+
+**Seed:** Zufallszahl, die das initiale Bildrauschen bestimmt. Gleicher Seed + gleicher Prompt = reproduzierbares Ergebnis.
+
+**T5-XXL:** Leistungsstarker Text-Encoder in Flux und SD 3.5. Versteht echte Grammatik, Kausalität und räumliche Beziehungen.
+
+**Token:** Die kleinste Einheit, in die ein Text-Encoder einen Prompt aufteilt. Entspricht etwa einem Wort oder Wortfragment.
+
+**VAE (Variational Autoencoder):** Das Teilmodell, das den internen Latent Space in sichtbare Pixel übersetzt und umgekehrt.
+
+**VRAM:** Videospeicher der Grafikkarte. Bestimmt, welche Modelle und Auflösungen möglich sind.
+
+---
+
+## Changelog
+
+**Version 3.2** *(Mai 2026)*
+- Kapitel 14: Kameraeinstellungen neu (Standard-Set, Framing, Winkel, Brennweite, Tiefenschärfe, Filmstile)
+- Kapitel 15: Stilangaben & Künstler-Referenzen neu (Medium, Kunststile, Künstler, Atmosphäre)
+- Kapitel 16: Negative Prompts – Strategie statt Cargo-Cult neu (wann nötig, drei Kategorien, was Cargo-Cult ist, Embeddings, Standard-Set)
+- Kapitel-Nummerierung angepasst (Troubleshooting → 17, Glossar → 18)
+
+**Version 3.1** *(Mai 2026)*
+- Kapitel 11: Szenen, Aktionen & Umgebungen neu (CLIP vs. T5, Umgebungsaufbau, Aktionsbeschreibungen, Tageszeit/Licht)
+- Kapitel 12: Kleidung & Accessoires neu (Materialien, Schichtung, Muster, Accessoires, Kontext)
+- Kapitel 13: Mehrere Personen neu (Vermischungs-Problem, AND-Syntax, Regional Prompting, Interaktionen, Gruppen)
+- Kapitel 12F: Wildcards für Outfit-Variation neu
+- Kapitel-Nummerierung angepasst (Troubleshooting → 14, Glossar → 15)
+
+**Version 3.0** *(Mai 2026)*
+- Illustrious XL & NoobAI-XL als eigener Abschnitt (Kapitel 7) ergänzt
+- CLIP Skip (Kapitel 8G) hinzugefügt
+- Img2Img-Workflow (Kapitel 10A) neu
+- Checkpoints vs. Basismodelle inkl. Civitai & Hugging Face (Kapitel 2) neu
+- LoRA-Stacking-Empfehlungen (Kapitel 9B) ergänzt
+- Settings vor LoRAs verschoben (Kapitel 8 vor 9)
+- Praxis-Experiment: Einleitung pro Modell, Illustrious als eigener Abschnitt C eingefügt
+- Profi-Workflow in Kapitel 10 integriert (kein eigenes Kapitel mehr)
+- Charakter-Konsistenz: Problemerklärung, Anfänger-Tipp (Prompt+Seed), LoRA-Training als Methode D ergänzt
+- Changelog ans Ende verschoben
+- Glossar (Kapitel 12) hinzugefügt
+
+**Version 2.0** *(April 2026)*
+- Kapitel „Sprache: Immer Englisch!" neu
+- VAE-Abschnitt in Settings ergänzt
+- Seed-Kontrolle in Settings ergänzt
+- Troubleshooting-Kapitel neu
+- Kapitelreihenfolge optimiert: Praxis-Experiment vor Pony-Sonderfall
+- ReActor-Abschnitt mit Deepfake-Warnung versehen
+- Wildcard-Syntax mit UI-Hinweis ergänzt
+
+**Version 1.0** *(März 2026)*
+- Erstveröffentlichung
+- Modell-Übersicht (SD 1.5, SDXL, Pony, Flux)
+- Master-Schablonen für Tag- und Prosa-Prompts
+- Token-Grenze erklärt
+- Pony V6 & V7 Sonderfall
+- Fortgeschrittene Techniken (Inpainting, Outpainting, ControlNet, Wildcards, Regional Prompting)
+- Praxis-Experiment mit Cyber-Detektiv
+- LoRAs & Embeddings
+- Settings (CFG, Sampler, Auflösung, Hi-Res Fix)
+- Iterativer Profi-Workflow
+
+---
+
+*Ende des Leitfadens – Version 3.0 | Mai 2026*
