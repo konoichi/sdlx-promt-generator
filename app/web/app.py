@@ -7,10 +7,12 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 import requests as req_lib
 import json
 import os
+import markdown as md_lib
 from app.config import get_generator, get_providers_status, get_provider
 from app.core.character import Character
 
 _IMAGES_DIR = os.path.abspath(os.path.join(os.environ.get("DATA_DIR", "data"), "images"))
+_GUIDE_PATH = os.path.abspath("docs/stable-diffusion-leitfaden-v3.md")
 _ALLOWED_EXTS = {"jpg", "jpeg", "png", "webp"}
 
 app = Flask(__name__)
@@ -21,6 +23,22 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/guide")
+def guide():
+    import re
+    text = open(_GUIDE_PATH, encoding="utf-8").read()
+    version_match = re.search(r'\*\*Version\s+([\d.]+)\*\*.*?Stand:\s*([^\n]+)', text)
+    version = version_match.group(1) if version_match else "–"
+    stand   = version_match.group(2).strip() if version_match else ""
+    converter = md_lib.Markdown(
+        extensions=["toc", "tables", "fenced_code"],
+        extension_configs={"toc": {"toc_depth": "2-3", "permalink": False}},
+    )
+    content = converter.convert(text)
+    return render_template("guide.html", content=content, toc=converter.toc,
+                           version=version, stand=stand)
 
 
 @app.route("/api/providers")
