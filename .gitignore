@@ -29,6 +29,11 @@ desktop.ini
 *.swo
 *~
 
+# ── KI-Assistenten-Konfiguration ─────────────────────────────
+CLAUDE.md
+gemini.md
+agents.md
+
 # ── Archive & Logs ────────────────────────────────────────────
 *.zip
 *.tar.gz
