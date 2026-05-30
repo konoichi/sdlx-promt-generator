@@ -82,16 +82,22 @@ body{font-family:var(--display);background:var(--bg);color:var(--ink);height:100
 .user-menu-soon{font-size:9px;font-family:var(--mono);color:var(--hint);margin-left:auto}
 
 /* Settings panel */
-#settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:810;display:none}
-#settings-overlay.open{display:block}
-#settings-panel{position:fixed;top:0;right:0;bottom:0;width:400px;background:var(--surface);border-left:1px solid var(--border);z-index:820;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column}
-#settings-panel.open{transform:translateX(0)}
+#settings-overlay,#profile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:810;display:none}
+#settings-overlay.open,#profile-overlay.open{display:block}
+#settings-panel,#profile-panel{position:fixed;top:0;right:0;bottom:0;width:400px;background:var(--surface);border-left:1px solid var(--border);z-index:820;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;display:flex;flex-direction:column}
+#settings-panel.open,#profile-panel.open{transform:translateX(0)}
 .sp-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:1}
 .sp-title{font-size:14px;font-weight:700}
 .sp-close{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
 .sp-close:hover{border-color:var(--danger);color:var(--danger)}
 .sp-body{padding:1.25rem;flex:1}
 .sp-section{margin-bottom:1.5rem}
+
+/* Profile specific */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.stats-card{background:var(--card);border:1px solid var(--border);padding:14px;border-radius:12px;text-align:center}
+.stats-value{display:block;font-size:22px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.stats-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 
 /* User profile card (placeholder) */
 .user-profile-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
@@ -253,14 +259,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div style="position:relative">
         <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()" title="Profil">U</div>
         <div class="user-menu" id="user-menu">
-          <div class="user-menu-item"><i class="fa fa-user"></i>Profil<span class="user-menu-soon">bald</span></div>
-          <div class="user-menu-item"><i class="fa fa-palette"></i>Theme<span class="user-menu-soon">bald</span></div>
-          <div class="user-menu-item"><i class="fa fa-right-from-bracket"></i>Logout<span class="user-menu-soon">bald</span></div>
+          <div class="user-menu-item" onclick="openProfile()" style="cursor:pointer"><i class="fa fa-user"></i>Profil</div>
+          <div class="user-menu-item" style="opacity:0.5"><i class="fa fa-palette"></i>Theme<span class="user-menu-soon">bald</span></div>
+          <a href="/logout" class="user-menu-item" style="text-decoration:none;color:inherit"><i class="fa fa-right-from-bracket"></i>Logout</a>
         </div>
       </div>
-      <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px" onclick="newCharacter()">
-        <i class="fa fa-plus" style="margin-right:5px"></i><span data-t="new">Neu</span>
-      </button>
     </div>
   </div>
 
@@ -739,6 +742,74 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 
+<!-- Profile overlay + panel -->
+<div id="profile-overlay" onclick="closeProfile()"></div>
+<div id="profile-panel">
+  <div class="sp-header">
+    <span class="sp-title"><i class="fa fa-user-circle" style="margin-right:8px;color:var(--accent)"></i>Mein Profil</span>
+    <button class="sp-close" onclick="closeProfile()"><i class="fa fa-xmark"></i></button>
+  </div>
+  <div class="sp-body">
+    
+    <!-- Profile Card -->
+    <div class="user-profile-card" style="margin-bottom:20px">
+      <div class="user-profile-avatar" id="profile-avatar-large">?</div>
+      <div class="user-profile-info">
+        <div class="user-profile-name" id="profile-email-display">E-Mail Adresse</div>
+        <div class="user-profile-role" id="profile-role-display">Benutzer-Rolle</div>
+      </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="section-label">Statistiken</div>
+    <div class="stats-grid">
+      <div class="stats-card">
+        <span class="stats-value" id="stats-chars-count">0</span>
+        <span class="stats-label">Charaktere</span>
+      </div>
+      <div class="stats-card">
+        <span class="stats-value" id="stats-prompts-count">0</span>
+        <span class="stats-label">Prompts</span>
+      </div>
+    </div>
+
+    <!-- Addons & Erweiterungen -->
+    <div class="sp-section">
+      <div class="section-label">Addons & Erweiterungen</div>
+      <div id="addon-list-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        <!-- Addons werden hier gerendert -->
+      </div>
+
+      <div class="settings-row">
+        <div class="field" style="flex:1">
+          <label>Freischaltcode / Lizenz</label>
+          <input type="text" id="license-key-input" placeholder="BETA-TESTER, PRO-2026...">
+        </div>
+        <button class="btn btn-secondary" onclick="unlockFeature()">Freischalten</button>
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div class="sp-section" style="border-top:1px solid var(--border);padding-top:20px;margin-top:20px">
+      <div class="section-label">Sicherheit</div>
+      <div class="field">
+        <label>Altes Passwort</label>
+        <input type="password" id="old-password" placeholder="••••••••" style="width:100%;padding:7px 10px;border:1px solid var(--border-mid);border-radius:7px;background:var(--surface);color:var(--ink);margin-bottom:8px">
+      </div>
+      <div class="field">
+        <label>Neues Passwort</label>
+        <input type="password" id="new-password" placeholder="••••••••" style="width:100%;padding:7px 10px;border:1px solid var(--border-mid);border-radius:7px;background:var(--surface);color:var(--ink)">
+      </div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:12px" onclick="changePassword()">Passwort ändern</button>
+    </div>
+
+    <div style="margin-top:40px">
+       <a href="/logout" class="btn btn-danger" style="display:block;text-align:center;text-decoration:none">Abmelden</a>
+    </div>
+
+  </div>
+</div>
+
 <!-- Settings overlay + panel -->
 <div id="settings-overlay" onclick="closeSettings()"></div>
 <div id="settings-panel">
@@ -747,22 +818,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <button class="sp-close" onclick="closeSettings()"><i class="fa fa-xmark"></i></button>
   </div>
   <div class="sp-body">
-
-    <!-- User profile placeholder -->
-    <div class="sp-section">
-      <div class="section-label">Benutzerprofil</div>
-      <div class="user-profile-card">
-        <div class="user-profile-avatar">U</div>
-        <div class="user-profile-info">
-          <div class="user-profile-name">Benutzer</div>
-          <div class="user-profile-role">Lokal · Kein Login</div>
-        </div>
-        <span style="font-size:10px;font-family:var(--mono);color:var(--hint);background:var(--surface);padding:2px 7px;border-radius:10px;border:1px solid var(--border)">bald</span>
-      </div>
-      <div class="info-box" style="font-size:12px">
-        Benutzerprofile — Name, Avatar, persönliche Präferenzen — kommen in einer späteren Version.
-      </div>
-    </div>
 
     <!-- Provider & Model -->
     <div class="sp-section">
@@ -838,38 +893,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <button class="btn btn-secondary" onclick="testImageBackend('comfyui','comfyui-host','comfyui-status')">Prüfen</button>
       </div>
       <div id="comfyui-status" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)"></div>
-    </div>
-
-    <!-- Addon Manager Section (already exists, but let's add Profile above it) -->
-    <div class="sp-section">
-      <div class="section-label">Mein Profil</div>
-      <div class="settings-row" style="background:var(--surface);padding:12px;border-radius:8px;border:1px solid var(--border)">
-        <div style="flex:1">
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Eingeloggt als</div>
-          <div id="user-email-display" style="font-size:14px;font-weight:600;margin-top:2px">...</div>
-        </div>
-        <a href="/logout" class="btn btn-secondary" style="text-decoration:none;font-size:12px">Logout</a>
-      </div>
-    </div>
-
-    <!-- Addons & Erweiterungen -->
-    <div class="sp-section">
-      <div class="section-label">Addons & Erweiterungen</div>
-      <div class="info-box" style="font-size:12px;margin-bottom:12px">
-        Hier siehst du installierte Module. Einige erfordern eine Freischaltung.
-      </div>
-      
-      <div id="addon-list-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-        <!-- Addons werden hier gerendert -->
-      </div>
-
-      <div class="settings-row">
-        <div class="field" style="flex:1">
-          <label>Freischaltcode / Lizenz</label>
-          <input type="text" id="license-key-input" placeholder="BETA-TESTER, PRO-2026...">
-        </div>
-        <button class="btn btn-secondary" onclick="unlockFeature()">Freischalten</button>
-      </div>
     </div>
 
     <!-- Dev info -->
@@ -1500,6 +1523,59 @@ function openSettings() {
 function closeSettings() {
   document.getElementById('settings-panel').classList.remove('open');
   document.getElementById('settings-overlay').classList.remove('open');
+}
+
+// ─── Profile Panel ─────────────────────────────────────────────────────────
+function openProfile() {
+  document.getElementById('profile-panel').classList.add('open');
+  document.getElementById('profile-overlay').classList.add('open');
+  document.getElementById('user-menu').classList.remove('open');
+  loadProfileData();
+}
+function closeProfile() {
+  document.getElementById('profile-panel').classList.remove('open');
+  document.getElementById('profile-overlay').classList.remove('open');
+}
+
+async function loadProfileData() {
+  const res = await fetch('/api/user/profile');
+  const result = await res.json();
+  if (!result.ok) return;
+  
+  document.getElementById('profile-email-display').textContent = result.email;
+  document.getElementById('profile-role-display').textContent = result.is_admin ? 'Administrator' : 'Benutzer';
+  document.getElementById('profile-avatar-large').textContent = result.email.charAt(0).toUpperCase();
+  
+  document.getElementById('stats-chars-count').textContent = result.stats.characters_count;
+  document.getElementById('stats-prompts-count').textContent = result.stats.prompts_count;
+  
+  // Addon Liste rendern (nutzt die globale systemStatus, falls aktuell)
+  renderAddonList();
+}
+
+async function changePassword() {
+  const old_password = document.getElementById('old-password').value;
+  const new_password = document.getElementById('new-password').value;
+  
+  if (!old_password || !new_password) {
+    showToast('Bitte beide Felder ausfüllen');
+    return;
+  }
+  
+  const res = await fetch('/api/user/change-password', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({old_password, new_password})
+  });
+  
+  const result = await res.json();
+  if (res.ok) {
+    showToast(result.message);
+    document.getElementById('old-password').value = '';
+    document.getElementById('new-password').value = '';
+  } else {
+    showToast(result.error || 'Fehler beim Ändern');
+  }
 }
 function toggleUserMenu() {
   document.getElementById('user-menu').classList.toggle('open');

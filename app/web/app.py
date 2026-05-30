@@ -180,6 +180,45 @@ def system_unlock():
     return jsonify({"ok": False, "error": message}), 403
 
 
+# ─── User Profile API ──────────────────────────────────────────────────────
+
+@app.route("/api/user/profile")
+@login_required
+def get_user_profile():
+    generator = get_generator()
+    # Statistiken berechnen
+    chars = generator.list_characters(current_user.id)
+    history = generator.list_prompt_history(current_user.id)
+    
+    return jsonify({
+        "ok": True,
+        "email": current_user.email,
+        "is_admin": current_user.is_admin,
+        "capabilities": current_user.get_capabilities(),
+        "stats": {
+            "characters_count": len(chars),
+            "prompts_count": len(history)
+        }
+    })
+
+@app.route("/api/user/change-password", methods=["POST"])
+@login_required
+def change_password():
+    data = request.json
+    old_pw = data.get("old_password")
+    new_pw = data.get("new_password")
+    
+    if not old_pw or not new_pw:
+        return jsonify({"ok": False, "error": "Daten unvollständig"}), 400
+        
+    if not current_user.check_password(old_pw):
+        return jsonify({"ok": False, "error": "Altes Passwort ist nicht korrekt"}), 403
+        
+    current_user.set_password(new_pw)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Passwort erfolgreich geändert"})
+
+
 @app.route("/api/addons/model-hub/info")
 @login_required
 def get_model_hub_info():
