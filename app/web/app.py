@@ -217,9 +217,7 @@ def generate():
         if not is_feature_unlocked("nsfw_content", user_caps, current_user.is_admin):
             return jsonify({"ok": False, "error": "NSFW-Funktion ist für dieses Konto nicht freigeschaltet."}), 403
 
-    generator = get_generator(provider_name)
-    try:
-
+    adapter = get_provider(provider_name)
     if model and hasattr(adapter, "set_model"):
         adapter.set_model(model)
 
@@ -231,7 +229,7 @@ def generate():
         return jsonify({"ok": False, "error": str(e)}), 400
 
     def event_stream():
-        for event in generator.generate_stream(character):
+        for event in generator.generate_stream(character, current_user.id):
             yield f"data: {json.dumps(event)}\n\n"
 
     return Response(
