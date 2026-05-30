@@ -17,11 +17,11 @@ Die Basis-Version ist für alle Nutzer kostenlos und bietet:
 - **Freischaltung:** Erfordert Addon-Modul und gültigen Key.
 
 ### 2. NSFW Expansion (`nsfw_content`)
-- **Status:** In Planung 🛠️
+- **Status:** Implementiert ✅
 - **Funktion:** 
     - Schaltet anatomische Details frei (Oberweite, Schambehaarung).
     - Ermöglicht dem LLM die Nutzung von NSFW-Tags (`rating_explicit`).
-    - Fügt "Nude" und "Lingerie" zu den Presets hinzu.
+    - Fügt "Nude" and "Lingerie" zu den Presets hinzu.
 
 ### 3. Character Vault (`char_management`)
 - **Status:** In Planung 🛠️ (aktuell noch im Core)

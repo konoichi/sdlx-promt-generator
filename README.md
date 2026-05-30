@@ -1,21 +1,29 @@
 # SDXL Prompt Generator
 
 Flask-basierter lokaler Prompt-Generator für SDXL Character-Design.
-Hexagonale Architektur — LLM-Anbieter einfach erweiterbar.
+Hexagonale Architektur mit Multi-User SaaS-Infrastruktur und Addon-System.
 
-## Lokaler Start
+## Features
 
-```bash
-# Setup einmalig ausführen
-make setup
+- **Multi-User & SaaS-ready:** Integriertes Login-System mit Passwort-Hashing und User-Isolation.
+- **Addon-System:** Modulare Architektur für Premium-Features (siehe [ADDONS.md](ADDONS.md)).
+- **Benutzerprofile:** Eigene Benutzernamen, Profil-Statistiken und Avatar-Upload (mit Auto-Processing).
+- **Ranking-System:** Verdiene Badges (Bronze bis Diamant) basierend auf deiner Prompt-Aktivität.
+- **Admin-Support:** Der erste registrierte Nutzer wird automatisch Administrator.
+- **Hexagonale Architektur:** LLM-Anbieter (Anthropic, Ollama) und Image-Backends (A1111, ComfyUI) einfach erweiterbar.
+- **History & Snapshots:** Jede Generierung wird mit einem vollständigen Snapshot der Einstellungen für den jeweiligen User gespeichert.
 
-# App starten
-make start
-```
+## Schnelleinstieg (SaaS Mode)
 
-Browser öffnen: http://127.0.0.1:5000
+1. **Setup & Start:**
+   ```bash
+   make dev
+   ```
+2. **Registrierung:** Öffne http://127.0.0.1:5000 und erstelle ein Konto.
+3. **Admin-Status:** Als erster registrierter Nutzer hast du automatisch vollen Zugriff auf alle Addons (Model Hub, NSFW etc.).
+4. **Profil:** Lade deinen Avatar hoch und verwalte deine Lizenzen im Profil-Panel (Avatar-Icon oben rechts).
 
-Manuell geht es weiterhin so:
+## Lokaler Start (Manuell)
 
 ```bash
 python -m venv .venv
