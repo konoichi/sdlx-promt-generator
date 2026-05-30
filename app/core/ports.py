@@ -73,41 +73,41 @@ class StoragePort(ABC):
     """Alles was gespeichert/geladen werden muss, geht durch dieses Interface."""
 
     @abstractmethod
-    def save_character(self, character: dict) -> str:
-        """Speichert einen Character, gibt die ID zurück."""
+    def save_character(self, character: dict, user_id: str) -> str:
+        """Speichert einen Character für einen spezifischen Nutzer."""
         pass
 
     @abstractmethod
-    def load_character(self, character_id: str) -> Optional[dict]:
+    def load_character(self, character_id: str, user_id: str) -> Optional[dict]:
         pass
 
     @abstractmethod
-    def list_characters(self) -> list[dict]:
+    def list_characters(self, user_id: str) -> list[dict]:
         pass
 
     @abstractmethod
-    def delete_character(self, character_id: str) -> bool:
+    def delete_character(self, character_id: str, user_id: str) -> bool:
         pass
 
     @abstractmethod
-    def save_prompt_history(self, entry: dict) -> str:
-        """Speichert einen Prompt-Verlauf-Eintrag, gibt die ID zurück."""
+    def save_prompt_history(self, entry: dict, user_id: str) -> str:
+        """Speichert einen Prompt-Verlauf-Eintrag für einen spezifischen Nutzer."""
         pass
 
     @abstractmethod
-    def list_prompt_history(self, character_id: Optional[str] = None) -> list[dict]:
+    def list_prompt_history(self, user_id: str, character_id: Optional[str] = None) -> list[dict]:
         pass
 
     @abstractmethod
-    def load_prompt_history(self, entry_id: str) -> Optional[dict]:
+    def load_prompt_history(self, entry_id: str, user_id: str) -> Optional[dict]:
         pass
 
     @abstractmethod
-    def delete_prompt_history(self, entry_id: str) -> bool:
+    def delete_prompt_history(self, entry_id: str, user_id: str) -> bool:
         pass
 
     @abstractmethod
-    def update_prompt_history(self, entry_id: str, updates: dict) -> bool:
+    def update_prompt_history(self, entry_id: str, user_id: str, updates: dict) -> bool:
         """Aktualisiert einzelne Felder eines bestehenden History-Eintrags."""
         pass
 

@@ -315,7 +315,7 @@ class PromptGenerator:
         return json.loads(raw[start:end + 1].strip())
 
     def _build_history_entry(self, result: dict, character: Character,
-                              provider: str, model: str) -> dict:
+                              provider: str, model: str, user_id: str) -> dict:
         positive = "\n\n".join([
             result["zone1"]["prompt"],
             result["zone2_face"]["prompt"],
@@ -338,12 +338,12 @@ class PromptGenerator:
             "negative_prompt": result["negative"],
             "created_at": datetime.now().isoformat(),
         }
-        self._storage.save_prompt_history(entry)
+        self._storage.save_prompt_history(entry, user_id)
         return entry
 
     # ── public API ─────────────────────────────────────────────────────────
 
-    def generate(self, character: Character) -> dict:
+    def generate(self, character: Character, user_id: str) -> dict:
         context = character.to_prompt_context()
         user_msg = USER_TEMPLATE.format(context=context)
 
@@ -353,9 +353,9 @@ class PromptGenerator:
         )
 
         result = self._parse_json_response(response.content)
-        return self._build_history_entry(result, character, response.provider, response.model)
+        return self._build_history_entry(result, character, response.provider, response.model, user_id)
 
-    def generate_stream(self, character: Character):
+    def generate_stream(self, character: Character, user_id: str):
         """
         Yields SSE-ready event dicts for the /api/generate endpoint.
         Works with any adapter: streaming if available, sync fallback otherwise.
@@ -374,7 +374,7 @@ class PromptGenerator:
         if not hasattr(self._llm, "generate_stream"):
             # Sync fallback for adapters that don't support streaming (e.g. Anthropic)
             try:
-                result = self.generate(character)
+                result = self.generate(character, user_id)
                 yield {"type": "result", "data": result}
             except Exception as e:
                 error_type, friendly_msg = _categorize_error(e)
@@ -409,7 +409,7 @@ class PromptGenerator:
                     full_content += event["delta"]
 
             result = self._parse_json_response(full_content)
-            entry = self._build_history_entry(result, character, provider, model)
+            entry = self._build_history_entry(result, character, provider, model, user_id)
             yield {"type": "result", "data": entry}
 
         except Exception as e:
@@ -420,6 +420,7 @@ class PromptGenerator:
                     provider=provider,
                     model=model,
                     error=friendly_msg,
+                    user_id=user_id,
                     character_id=character.id,
                     error_type=error_type,
                 )
@@ -428,7 +429,7 @@ class PromptGenerator:
             yield {"type": "error", "error": friendly_msg, "error_type": error_type}
 
     def save_error(self, character_name: str, provider: str, model: str,
-                   error: str, character_id: str | None = None,
+                   error: str, user_id: str, character_id: str | None = None,
                    error_type: str = "unknown") -> dict:
         entry = {
             "id": str(uuid.uuid4()),
@@ -441,32 +442,32 @@ class PromptGenerator:
             "error": error,
             "created_at": datetime.now().isoformat(),
         }
-        self._storage.save_prompt_history(entry)
+        self._storage.save_prompt_history(entry, user_id)
         return entry
 
-    def save_character(self, character: Character) -> str:
-        return self._storage.save_character(character.to_dict())
+    def save_character(self, character: Character, user_id: str) -> str:
+        return self._storage.save_character(character.to_dict(), user_id)
 
-    def load_character(self, character_id: str) -> Character | None:
-        data = self._storage.load_character(character_id)
+    def load_character(self, character_id: str, user_id: str) -> Character | None:
+        data = self._storage.load_character(character_id, user_id)
         if data:
             return Character.from_dict(data)
         return None
 
-    def list_characters(self) -> list[dict]:
-        return self._storage.list_characters()
+    def list_characters(self, user_id: str) -> list[dict]:
+        return self._storage.list_characters(user_id)
 
-    def delete_character(self, character_id: str) -> bool:
-        return self._storage.delete_character(character_id)
+    def delete_character(self, character_id: str, user_id: str) -> bool:
+        return self._storage.delete_character(character_id, user_id)
 
-    def list_prompt_history(self, character_id: str | None = None) -> list[dict]:
-        return self._storage.list_prompt_history(character_id)
+    def list_prompt_history(self, user_id: str, character_id: str | None = None) -> list[dict]:
+        return self._storage.list_prompt_history(user_id, character_id)
 
-    def load_prompt_history(self, entry_id: str) -> dict | None:
-        return self._storage.load_prompt_history(entry_id)
+    def load_prompt_history(self, entry_id: str, user_id: str) -> dict | None:
+        return self._storage.load_prompt_history(entry_id, user_id)
 
-    def delete_prompt_history(self, entry_id: str) -> bool:
-        return self._storage.delete_prompt_history(entry_id)
+    def delete_prompt_history(self, entry_id: str, user_id: str) -> bool:
+        return self._storage.delete_prompt_history(entry_id, user_id)
 
-    def update_history_entry(self, entry_id: str, updates: dict) -> bool:
-        return self._storage.update_prompt_history(entry_id, updates)
+    def update_history_entry(self, entry_id: str, user_id: str, updates: dict) -> bool:
+        return self._storage.update_prompt_history(entry_id, user_id, updates)

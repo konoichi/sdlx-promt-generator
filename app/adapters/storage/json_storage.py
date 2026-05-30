@@ -36,10 +36,12 @@ class JsonStorageAdapter(StoragePort):
 
     # --- Characters ---
 
-    def save_character(self, character: dict) -> str:
+    def save_character(self, character: dict, user_id: str) -> str:
         characters = self._read(self._characters_file)
-        existing = next((i for i, c in enumerate(characters) if c["id"] == character["id"]), None)
+        # Suche nach existierendem Character für DIESEN Nutzer
+        existing = next((i for i, c in enumerate(characters) if c["id"] == character["id"] and str(c.get("user_id")) == str(user_id)), None)
 
+        character["user_id"] = user_id
         character["updated_at"] = datetime.now().isoformat()
 
         if existing is not None:
@@ -52,18 +54,20 @@ class JsonStorageAdapter(StoragePort):
         self._write(self._characters_file, characters)
         return character["id"]
 
-    def load_character(self, character_id: str) -> Optional[dict]:
+    def load_character(self, character_id: str, user_id: str) -> Optional[dict]:
         characters = self._read(self._characters_file)
-        return next((c for c in characters if c["id"] == character_id), None)
+        return next((c for c in characters if c["id"] == character_id and str(c.get("user_id")) == str(user_id)), None)
 
-    def list_characters(self) -> list[dict]:
+    def list_characters(self, user_id: str) -> list[dict]:
         characters = self._read(self._characters_file)
+        # Nur für diesen Nutzer filtern
+        user_chars = [c for c in characters if str(c.get("user_id")) == str(user_id)]
         # Neueste zuerst
-        return sorted(characters, key=lambda c: c.get("updated_at", ""), reverse=True)
+        return sorted(user_chars, key=lambda c: c.get("updated_at", ""), reverse=True)
 
-    def delete_character(self, character_id: str) -> bool:
+    def delete_character(self, character_id: str, user_id: str) -> bool:
         characters = self._read(self._characters_file)
-        filtered = [c for c in characters if c["id"] != character_id]
+        filtered = [c for c in characters if not (c["id"] == character_id and str(c.get("user_id")) == str(user_id))]
         if len(filtered) == len(characters):
             return False
         self._write(self._characters_file, filtered)
@@ -71,36 +75,39 @@ class JsonStorageAdapter(StoragePort):
 
     # --- Prompt History ---
 
-    def save_prompt_history(self, entry: dict) -> str:
+    def save_prompt_history(self, entry: dict, user_id: str) -> str:
         history = self._read(self._history_file)
+        entry["user_id"] = user_id
         if "id" not in entry:
             entry["id"] = str(uuid.uuid4())
         history.append(entry)
         self._write(self._history_file, history)
         return entry["id"]
 
-    def list_prompt_history(self, character_id: Optional[str] = None) -> list[dict]:
+    def list_prompt_history(self, user_id: str, character_id: Optional[str] = None) -> list[dict]:
         history = self._read(self._history_file)
+        # Nur für diesen Nutzer filtern
+        history = [h for h in history if str(h.get("user_id")) == str(user_id)]
         if character_id:
             history = [h for h in history if h.get("character_id") == character_id]
         return sorted(history, key=lambda h: h.get("created_at", ""), reverse=True)
 
-    def load_prompt_history(self, entry_id: str) -> Optional[dict]:
+    def load_prompt_history(self, entry_id: str, user_id: str) -> Optional[dict]:
         history = self._read(self._history_file)
-        return next((h for h in history if h["id"] == entry_id), None)
+        return next((h for h in history if h["id"] == entry_id and str(h.get("user_id")) == str(user_id)), None)
 
-    def delete_prompt_history(self, entry_id: str) -> bool:
+    def delete_prompt_history(self, entry_id: str, user_id: str) -> bool:
         history = self._read(self._history_file)
-        filtered = [h for h in history if h["id"] != entry_id]
+        filtered = [h for h in history if not (h["id"] == entry_id and str(h.get("user_id")) == str(user_id))]
         if len(filtered) == len(history):
             return False
         self._write(self._history_file, filtered)
         return True
 
-    def update_prompt_history(self, entry_id: str, updates: dict) -> bool:
+    def update_prompt_history(self, entry_id: str, user_id: str, updates: dict) -> bool:
         history = self._read(self._history_file)
         for i, entry in enumerate(history):
-            if entry["id"] == entry_id:
+            if entry["id"] == entry_id and str(entry.get("user_id")) == str(user_id):
                 history[i].update(updates)
                 self._write(self._history_file, history)
                 return True
