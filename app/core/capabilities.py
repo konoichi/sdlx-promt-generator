@@ -7,11 +7,15 @@ _LICENSE_KEYS = {
     "ULTIMATE": ["all"]
 }
 
-def is_feature_unlocked(feature_key: str, user_capabilities: list[str]) -> bool:
+def is_feature_unlocked(feature_key: str, user_capabilities: list[str], is_admin: bool = False) -> bool:
     """
     Prüft, ob eine bestimmte Funktion für einen Nutzer freigeschaltet ist.
-    Inklusive Check der Umgebungsvariable 'UNLOCKED_FEATURES' für globale Overrides.
+    Admins haben immer Zugriff auf alles.
     """
+    # 0. Admin-Check (höchste Priorität)
+    if is_admin:
+        return True
+
     # 1. Globaler Override via Env (für Devs)
     unlocked_env = os.getenv("UNLOCKED_FEATURES", "")
     if unlocked_env:

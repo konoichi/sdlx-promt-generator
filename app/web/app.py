@@ -55,7 +55,10 @@ def register():
         if User.query.filter_by(email=email).first():
             flash("Email bereits registriert.")
             return redirect(url_for("register"))
-        user = User(email=email)
+        
+        # Erster User wird automatisch Admin
+        is_first = User.query.count() == 0
+        user = User(email=email, is_admin=is_first)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -152,10 +155,11 @@ def system_status():
     return jsonify({
         "user": {
             "id": current_user.id,
-            "email": current_user.email
+            "email": current_user.email,
+            "is_admin": current_user.is_admin
         },
         "capabilities": user_caps,
-        "addons": list_all_installed_addons(user_caps)
+        "addons": list_all_installed_addons(user_caps, current_user.is_admin)
     })
 
 
@@ -188,7 +192,7 @@ def get_model_hub_info():
     from app.core.addon_ports import ModelMetadataProvider
     
     user_caps = current_user.get_capabilities()
-    providers = get_active_addons_by_type(ModelMetadataProvider, user_caps)
+    providers = get_active_addons_by_type(ModelMetadataProvider, user_caps, current_user.is_admin)
     if not providers:
         return jsonify({"ok": False, "error": "Model Hub Addon nicht aktiv oder nicht freigeschaltet"}), 403
     
@@ -210,7 +214,7 @@ def generate():
     # NSFW Gating Check
     if data.get("allow_nsfw"):
         user_caps = current_user.get_capabilities()
-        if not is_feature_unlocked("nsfw_content", user_caps):
+        if not is_feature_unlocked("nsfw_content", user_caps, current_user.is_admin):
             return jsonify({"ok": False, "error": "NSFW-Funktion ist für dieses Konto nicht freigeschaltet."}), 403
 
     generator = get_generator(provider_name)
