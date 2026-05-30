@@ -17,7 +17,7 @@ from app.config import (
     get_provider,
 )
 from app.core.capabilities import verify_license_key
-from app.addons import list_active_addons, list_all_installed_addons
+from app.addons import list_all_installed_addons
 from app.core.character import Character
 from app.core.ports import ImageGenerationRequest
 from app.extensions import db, login_manager
