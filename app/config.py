@@ -98,3 +98,14 @@ def get_image_backend(backend_id: str):
 
 def get_image_backends_status() -> list[dict]:
     return [backend.status().__dict__ for backend in IMAGE_BACKENDS.values()]
+
+
+# --- Addons (Optional) ---
+from app.addons import register_addon
+
+# Versuch, den Model Hub zu laden
+try:
+    from app.addons.model_hub.provider import ModelHubProvider
+    register_addon(ModelHubProvider())
+except ImportError:
+    pass
