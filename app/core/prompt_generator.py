@@ -459,6 +459,9 @@ class PromptGenerator:
     def list_prompt_history(self, character_id: str | None = None) -> list[dict]:
         return self._storage.list_prompt_history(character_id)
 
+    def load_prompt_history(self, entry_id: str) -> dict | None:
+        return self._storage.load_prompt_history(entry_id)
+
     def delete_prompt_history(self, entry_id: str) -> bool:
         return self._storage.delete_prompt_history(entry_id)
 

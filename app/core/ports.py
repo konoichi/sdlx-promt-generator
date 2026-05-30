@@ -16,6 +16,36 @@ class LLMResponse:
     provider: str
 
 
+@dataclass
+class ImageBackendStatus:
+    id: str
+    name: str
+    host: str
+    available: bool
+    models: list[str]
+    capabilities: list[str]
+    error: str = ""
+
+
+@dataclass
+class ImageGenerationRequest:
+    positive_prompt: str
+    negative_prompt: str
+    model: str = ""
+    width: int = 1024
+    height: int = 1024
+    steps: int = 25
+    cfg_scale: float = 7.0
+    seed: int = -1
+
+
+@dataclass
+class ImageGenerationResult:
+    image_bytes: bytes
+    extension: str
+    metadata: dict
+
+
 class LLMPort(ABC):
     """Jeder LLM-Anbieter implementiert dieses Interface."""
 
@@ -69,10 +99,45 @@ class StoragePort(ABC):
         pass
 
     @abstractmethod
+    def load_prompt_history(self, entry_id: str) -> Optional[dict]:
+        pass
+
+    @abstractmethod
     def delete_prompt_history(self, entry_id: str) -> bool:
         pass
 
     @abstractmethod
     def update_prompt_history(self, entry_id: str, updates: dict) -> bool:
         """Aktualisiert einzelne Felder eines bestehenden History-Eintrags."""
+        pass
+
+
+class ImageBackendPort(ABC):
+    """Bildgenerator-Backends wie Automatic1111 oder ComfyUI."""
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def host(self) -> str:
+        pass
+
+    @abstractmethod
+    def set_host(self, host: str):
+        pass
+
+    @abstractmethod
+    def status(self) -> ImageBackendStatus:
+        pass
+
+    @abstractmethod
+    def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         pass

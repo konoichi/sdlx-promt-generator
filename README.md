@@ -108,8 +108,43 @@ make dev
 
 App öffnen: http://127.0.0.1:5000
 
-Lokales Ollama auf dem Host ist im Container standardmäßig über
-`http://host.docker.internal:11434` erreichbar.
+Für Ollama muss `OLLAMA_LOCAL_HOST` in `.env` auf die aus dem Container
+erreichbare Adresse zeigen. Beispiele:
+
+```bash
+# Ollama im Homelab
+OLLAMA_LOCAL_HOST=http://192.168.13.113:11434
+
+# Ollama im lokalen Hermes-Docker-Netzwerk
+OLLAMA_LOCAL_HOST=http://hermes-ollama:11434
+
+# Ollama auf demselben Docker-Host
+OLLAMA_LOCAL_HOST=http://host.docker.internal:11434
+```
+
+Image-Backends können ebenfalls in `.env` konfiguriert werden:
+
+```bash
+# Automatic1111 mit --api
+AUTOMATIC1111_HOST=http://host.docker.internal:7860
+
+# ComfyUI
+COMFYUI_HOST=http://host.docker.internal:8188
+```
+
+Automatic1111 muss mit aktivierter API laufen, z.B. mit `--api`. ComfyUI stellt
+die benötigten Endpunkte standardmäßig bereit.
+
+In der App:
+
+1. Prompt generieren.
+2. Unter `Bildausgabe` Backend, Checkpoint, Größe und Steps/CFG wählen.
+3. `Bild generieren` klicken.
+4. Das erzeugte Bild wird in `data/images/` gespeichert und am History-Eintrag
+   referenziert.
+
+Wenn ComfyUI `OutOfMemory` meldet: kleinere Größe wählen, ein kleineres Modell
+nutzen oder andere GPU-Prozesse beenden.
 
 ### Make Targets
 
@@ -142,10 +177,4 @@ Optional einen anderen Host-Port verwenden:
 
 ```bash
 APP_PORT=8080 docker compose up -d
-```
-
-Optional einen anderen Ollama-Host für den Container verwenden:
-
-```bash
-CONTAINER_OLLAMA_LOCAL_HOST=http://ollama.example:11434 docker compose up -d
 ```

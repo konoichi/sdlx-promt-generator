@@ -10,13 +10,15 @@ services:
       HOST: 0.0.0.0
       PORT: 5000
       DATA_DIR: /app/data
-      OLLAMA_LOCAL_HOST: ${CONTAINER_OLLAMA_LOCAL_HOST:-http://host.docker.internal:11434}
     ports:
       - "${APP_PORT:-5000}:5000"
     volumes:
       - ./data:/app/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - hermes
     healthcheck:
       test:
         [
@@ -29,3 +31,8 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+
+networks:
+  hermes:
+    external: true
+    name: hermes-agent_hermes-net

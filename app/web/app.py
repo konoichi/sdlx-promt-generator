@@ -8,8 +8,15 @@ import requests as req_lib
 import json
 import os
 import markdown as md_lib
-from app.config import get_generator, get_providers_status, get_provider
+from app.config import (
+    get_generator,
+    get_image_backend,
+    get_image_backends_status,
+    get_providers_status,
+    get_provider,
+)
 from app.core.character import Character
+from app.core.ports import ImageGenerationRequest
 
 _IMAGES_DIR = os.path.abspath(os.path.join(os.environ.get("DATA_DIR", "data"), "images"))
 _GUIDE_PATH = os.path.abspath("docs/stable-diffusion-leitfaden-v3.md")
@@ -55,6 +62,22 @@ def providers():
 def provider_models(provider_id):
     adapter = get_provider(provider_id)
     return jsonify({"models": adapter.available_models})
+
+
+@app.route("/api/image-backends")
+def image_backends():
+    return jsonify(get_image_backends_status())
+
+
+@app.route("/api/image-backends/<backend_id>/host", methods=["POST"])
+def set_image_backend_host(backend_id):
+    backend = get_image_backend(backend_id)
+    if not backend:
+        return jsonify({"ok": False, "error": "Unbekanntes Image-Backend"}), 404
+    host = request.json.get("host", backend.host)
+    backend.set_host(host)
+    status = backend.status()
+    return jsonify({"ok": True, **status.__dict__})
 
 
 # ─── Prompt generieren ─────────────────────────────────────────────────────
@@ -164,6 +187,59 @@ def serve_history_image(entry_id):
         if os.path.exists(path):
             return send_file(path)
     return jsonify({"error": "Nicht gefunden"}), 404
+
+
+@app.route("/api/history/<entry_id>/generate-image", methods=["POST"])
+def generate_history_image(entry_id):
+    generator = get_generator()
+    entry = generator.load_prompt_history(entry_id)
+    if not entry:
+        return jsonify({"ok": False, "error": "History-Eintrag nicht gefunden"}), 404
+    if entry.get("status") != "success":
+        return jsonify({"ok": False, "error": "Nur erfolgreiche Prompt-Einträge können gerendert werden"}), 400
+
+    data = request.json or {}
+    backend_id = data.get("backend", "comfyui")
+    backend = get_image_backend(backend_id)
+    if not backend:
+        return jsonify({"ok": False, "error": "Unbekanntes Image-Backend"}), 404
+
+    image_request = ImageGenerationRequest(
+        positive_prompt=entry.get("positive_prompt", ""),
+        negative_prompt=entry.get("negative_prompt", ""),
+        model=data.get("model", ""),
+        width=int(data.get("width", 1024)),
+        height=int(data.get("height", 1024)),
+        steps=int(data.get("steps", 25)),
+        cfg_scale=float(data.get("cfg_scale", 7.0)),
+        seed=int(data.get("seed", -1)),
+    )
+
+    try:
+        result = backend.generate(image_request)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+
+    ext = result.extension.lower()
+    if ext == "jpg":
+        ext = "jpeg"
+    if ext not in _ALLOWED_EXTS:
+        ext = "png"
+
+    os.makedirs(_IMAGES_DIR, exist_ok=True)
+    filename = f"{entry_id}.{ext}"
+    path = os.path.join(_IMAGES_DIR, filename)
+    with open(path, "wb") as f:
+        f.write(result.image_bytes)
+
+    updates = {
+        "image_path": filename,
+        "image_backend": backend_id,
+        "image_model": image_request.model,
+        "image_generation": result.metadata,
+    }
+    generator.update_history_entry(entry_id, updates)
+    return jsonify({"ok": True, "image_path": filename, "metadata": result.metadata})
 
 
 # ─── Ollama Host setzen ────────────────────────────────────────────────────

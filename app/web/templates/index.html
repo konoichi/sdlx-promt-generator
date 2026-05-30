@@ -349,6 +349,40 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </div>
       <div id="checkpoint-hint" style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;padding:6px 10px;background:var(--accent-dim);border-radius:6px;border-left:2px solid var(--accent)"></div>
 
+      <!-- Image Backend -->
+      <div class="section-label">Bildausgabe</div>
+      <div class="form-grid four">
+        <div class="field">
+          <label>Backend</label>
+          <select id="image-backend-select" onchange="onImageBackendChange()"></select>
+        </div>
+        <div class="field">
+          <label>Checkpoint</label>
+          <select id="image-model-select"></select>
+        </div>
+        <div class="field">
+          <label>Größe</label>
+          <select id="image-size">
+            <option value="768x768">768×768</option>
+            <option value="896x896">896×896</option>
+            <option value="1024x1024">1024×1024</option>
+            <option value="832x1216">832×1216</option>
+            <option value="1216x832">1216×832</option>
+            <option value="768x1344">768×1344</option>
+            <option value="1344x768">1344×768</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Steps / CFG</label>
+          <select id="image-quality">
+            <option value="25:7">25 / 7</option>
+            <option value="30:7">30 / 7</option>
+            <option value="20:5">20 / 5</option>
+            <option value="35:8">35 / 8</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Aufnahme -->
       <div class="section-label">Aufnahme</div>
       <div class="tags-row" id="shot-type-tags"></div>
@@ -651,7 +685,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <button class="copy-btn" onclick="copyText('positive')"><i class="fa fa-copy" style="margin-right:4px"></i>Nur Positiv</button>
           <button class="copy-btn" onclick="copyText('negative')"><i class="fa fa-copy" style="margin-right:4px"></i>Nur Negativ</button>
           <button class="copy-btn" onclick="copyText('phase1')"><i class="fa fa-copy" style="margin-right:4px"></i>Phase 1 (ohne Körper)</button>
+          <button class="copy-btn" id="render-last-btn" onclick="generateImageForLastResult()"><i class="fa fa-image" style="margin-right:4px"></i>Bild generieren</button>
         </div>
+        <div class="iter-image-area" id="result-image-area" style="padding:12px 0 0"></div>
       </div>
     </div>
 
@@ -750,11 +786,37 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div id="ollama-cloud-status" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)"></div>
     </div>
 
+    <!-- Image Backends -->
+    <div class="sp-section">
+      <div class="section-label">Image Backends</div>
+      <div class="info-box" style="font-size:12px">
+        Vorgesehen für direkte Übergabe generierter Prompts an <code>Automatic1111</code> oder <code>ComfyUI</code>.
+      </div>
+
+      <div class="settings-row">
+        <div class="field" style="flex:1">
+          <label>Automatic1111 Host</label>
+          <input type="text" id="automatic1111-host" value="http://localhost:7860" placeholder="http://localhost:7860">
+        </div>
+        <button class="btn btn-secondary" onclick="testImageBackend('automatic1111','automatic1111-host','automatic1111-status')">Prüfen</button>
+      </div>
+      <div id="automatic1111-status" style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:12px;font-family:var(--mono)"></div>
+
+      <div class="settings-row">
+        <div class="field" style="flex:1">
+          <label>ComfyUI Host</label>
+          <input type="text" id="comfyui-host" value="http://localhost:8188" placeholder="http://localhost:8188">
+        </div>
+        <button class="btn btn-secondary" onclick="testImageBackend('comfyui','comfyui-host','comfyui-status')">Prüfen</button>
+      </div>
+      <div id="comfyui-status" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)"></div>
+    </div>
+
     <!-- Dev info -->
     <div class="sp-section">
       <div class="section-label">Entwickler</div>
       <div class="info-box" style="font-size:12px">
-        Hexagonale Architektur · Neuen Anbieter: <code>app/adapters/llm/</code> → <code>LLMPort</code> implementieren → in <code>app/config.py</code> eintragen.
+        Hexagonale Architektur · Neue LLM-Anbieter: <code>app/adapters/llm/</code> · neue Image-Backends: <code>app/adapters/image/</code>.
       </div>
     </div>
 
@@ -778,6 +840,7 @@ let selBodyHair   = new Set();
 let selBodyMarks  = new Set();
 let lastResult    = null;
 let currentCharId = null;
+let imageBackends = [];
 
 // ─── Option Data ──────────────────────────────────────────────────────────
 const ethnicityOpts = [
@@ -939,6 +1002,20 @@ function getFormData() {
   };
 }
 
+function getImageSettings() {
+  const [width, height] = (document.getElementById('image-size').value || '1024x1024').split('x').map(Number);
+  const [steps, cfg] = (document.getElementById('image-quality').value || '25:7').split(':').map(Number);
+  return {
+    backend: document.getElementById('image-backend-select').value || 'comfyui',
+    model: document.getElementById('image-model-select').value || '',
+    width,
+    height,
+    steps,
+    cfg_scale: cfg,
+    seed: -1,
+  };
+}
+
 function fillForm(char) {
   document.getElementById('char-name').value = char.name || '';
   document.getElementById('gender').value = char.gender || 'woman';
@@ -1097,11 +1174,14 @@ function renderResult(data) {
   pos += renderZone('out-z4','exp-z4',r.zone4_context);
   document.getElementById('out-neg').textContent = r.negative;
 
-  lastResult = { positive: pos.trim(), negative: r.negative,
+  lastResult = { entry_id: data.id, positive: pos.trim(), negative: r.negative,
     zone1: r.zone1.prompt, zone2: r.zone2_face.prompt,
     zone4: r.zone4_context.prompt };
 
   document.getElementById('result-section').style.display = 'block';
+  document.getElementById('result-image-area').innerHTML = data.image_path
+    ? `<img class="iter-thumb" src="/api/history/${data.id}/image?t=${Date.now()}" onclick="this.style.maxWidth=this.style.maxWidth?'':'100%'">`
+    : '';
   document.getElementById('result-section').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -1358,6 +1438,73 @@ async function testOllamaProvider(providerId, hostInputId, statusId) {
   loadProviders();
 }
 
+async function loadImageBackends() {
+  const res = await fetch('/api/image-backends');
+  const backends = await res.json();
+  imageBackends = backends;
+  const backendSel = document.getElementById('image-backend-select');
+  if (backendSel) {
+    backendSel.innerHTML = '';
+    backends.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name + (b.available ? '' : ' (nicht verfügbar)');
+      opt.disabled = !b.available;
+      backendSel.appendChild(opt);
+    });
+    const firstAvailable = backends.find(b => b.available);
+    if (firstAvailable) backendSel.value = firstAvailable.id;
+    onImageBackendChange();
+  }
+  backends.forEach(b => {
+    const input = document.getElementById(`${b.id}-host`);
+    const status = document.getElementById(`${b.id}-status`);
+    if (input) input.value = b.host;
+    if (!status) return;
+    if (b.available) {
+      status.style.color = 'var(--accent)';
+      status.textContent = `✓ Verbunden · ${b.models.length} Modelle · ${b.capabilities.join(', ')}`;
+    } else {
+      status.style.color = 'var(--muted)';
+      status.textContent = `Nicht verbunden · ${b.host}`;
+    }
+  });
+}
+
+function onImageBackendChange() {
+  const backendId = document.getElementById('image-backend-select')?.value;
+  const modelSel = document.getElementById('image-model-select');
+  if (!backendId || !modelSel) return;
+  const backend = imageBackends.find(b => b.id === backendId);
+  modelSel.innerHTML = '';
+  (backend?.models || []).forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    modelSel.appendChild(opt);
+  });
+}
+
+async function testImageBackend(backendId, hostInputId, statusId) {
+  const host = document.getElementById(hostInputId).value;
+  const statusEl = document.getElementById(statusId);
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Prüfe…';
+  const res = await fetch(`/api/image-backends/${backendId}/host`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({host}),
+  });
+  const data = await res.json();
+  if (data.available) {
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = `✓ Verbunden · ${data.models.length} Modelle · ${data.capabilities.join(', ')}`;
+  } else {
+    statusEl.style.color = 'var(--danger)';
+    statusEl.textContent = `✗ Nicht erreichbar · ${data.error || data.host}`;
+  }
+}
+
 // ─── UI Helpers ───────────────────────────────────────────────────────────
 function updateProviderPill() {
   const provSel  = document.getElementById('provider-select');
@@ -1484,6 +1631,7 @@ function renderIterations(entries, globalMode = false) {
          <button class="iter-action-btn iter-delete-btn" style="color:var(--danger);border-color:var(--danger)">Löschen</button>`
       : `<button class="iter-action-btn iter-load-btn">Laden</button>
          <button class="iter-action-btn iter-copy-btn">Kopieren</button>
+         <button class="iter-action-btn iter-render-btn">Rendern</button>
          <button class="iter-action-btn iter-delete-btn" style="color:var(--danger);border-color:var(--danger)">Löschen</button>
          <label class="iter-action-btn" style="cursor:pointer">
            ${hasImage ? '🖼 Ersetzen' : '+ Bild'}
@@ -1519,6 +1667,7 @@ function renderIterations(entries, globalMode = false) {
       navigator.clipboard.writeText(`Zeitpunkt: ${entry.created_at}\nProvider: ${entry.provider}\nModell: ${entry.model}\nCharacter: ${entry.character_name}\n\nFehler: ${entry.error || '–'}`);
       showToast('Fehler kopiert!');
     });
+    card.querySelector('.iter-render-btn')?.addEventListener('click', () => generateImageForEntry(entry.id));
     card.querySelector('.iter-delete-btn')?.addEventListener('click', async () => {
       await fetch(`/api/history/${entry.id}`, {method:'DELETE'});
       loadSheet();
@@ -1543,6 +1692,31 @@ async function uploadIterationImage(entryId, input) {
   } else {
     showToast('Fehler beim Hochladen');
   }
+}
+
+async function generateImageForLastResult() {
+  if (!lastResult?.entry_id) return;
+  await generateImageForEntry(lastResult.entry_id, 'result-image-area');
+}
+
+async function generateImageForEntry(entryId, targetId = null) {
+  const settings = getImageSettings();
+  showToast('Bildgenerierung gestartet…');
+  const res = await fetch(`/api/history/${entryId}/generate-image`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(settings),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    showToast(data.error || 'Bildgenerierung fehlgeschlagen');
+    return;
+  }
+  const imgHtml = `<img class="iter-thumb" src="/api/history/${entryId}/image?t=${Date.now()}" onclick="this.style.maxWidth=this.style.maxWidth?'':'100%'">`;
+  const target = targetId ? document.getElementById(targetId) : document.getElementById(`iter-img-${entryId}`);
+  if (target) target.innerHTML = imgHtml;
+  showToast('Bild gespeichert');
+  if (!targetId && _sheetEntries.length) loadSheet();
 }
 
 function showToast(msg) {
@@ -1761,6 +1935,7 @@ updateCheckpointHint();
 // ─── Init ─────────────────────────────────────────────────────────────────
 setLang(_lang);
 loadProviders();
+loadImageBackends();
 loadCharacters();
 </script>
 </body>

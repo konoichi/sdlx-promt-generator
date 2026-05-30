@@ -85,6 +85,10 @@ class JsonStorageAdapter(StoragePort):
             history = [h for h in history if h.get("character_id") == character_id]
         return sorted(history, key=lambda h: h.get("created_at", ""), reverse=True)
 
+    def load_prompt_history(self, entry_id: str) -> Optional[dict]:
+        history = self._read(self._history_file)
+        return next((h for h in history if h["id"] == entry_id), None)
+
     def delete_prompt_history(self, entry_id: str) -> bool:
         history = self._read(self._history_file)
         filtered = [h for h in history if h["id"] != entry_id]

@@ -11,6 +11,8 @@ load_dotenv()
 
 from app.adapters.llm.anthropic_adapter import AnthropicAdapter
 from app.adapters.llm.ollama_adapter import OllamaAdapter
+from app.adapters.image.automatic1111_adapter import Automatic1111Adapter
+from app.adapters.image.comfyui_adapter import ComfyUIAdapter
 from app.adapters.storage.json_storage import JsonStorageAdapter
 from app.core.prompt_generator import PromptGenerator
 
@@ -52,6 +54,22 @@ PROVIDERS: dict[str, object] = {
 
 DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "anthropic")
 
+# --- Image Backend Adapter ---
+automatic1111_adapter = Automatic1111Adapter(
+    host=os.getenv("AUTOMATIC1111_HOST", "http://localhost:7860"),
+    timeout=int(os.getenv("IMAGE_BACKEND_TIMEOUT", "5")),
+)
+
+comfyui_adapter = ComfyUIAdapter(
+    host=os.getenv("COMFYUI_HOST", "http://localhost:8188"),
+    timeout=int(os.getenv("IMAGE_BACKEND_TIMEOUT", "5")),
+)
+
+IMAGE_BACKENDS = {
+    "automatic1111": automatic1111_adapter,
+    "comfyui": comfyui_adapter,
+}
+
 
 def get_provider(name: str):
     return PROVIDERS.get(name, anthropic_adapter)
@@ -72,3 +90,11 @@ def get_providers_status() -> list[dict]:
         }
         for pid, adapter in PROVIDERS.items()
     ]
+
+
+def get_image_backend(backend_id: str):
+    return IMAGE_BACKENDS.get(backend_id)
+
+
+def get_image_backends_status() -> list[dict]:
+    return [backend.status().__dict__ for backend in IMAGE_BACKENDS.values()]
