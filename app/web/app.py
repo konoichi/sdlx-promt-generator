@@ -5,6 +5,8 @@ Keine Business Logic hier. Alles geht durch den PromptGenerator.
 
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
+from PIL import Image, ImageOps
+import io
 import requests as req_lib
 import json
 import os
@@ -37,6 +39,13 @@ login_manager.init_app(app)
 
 with app.app_context():
     db.create_all()
+    # Migration: Bestehende User ohne Username fixen
+    users_to_fix = User.query.filter(User.username == None).all()
+    if users_to_fix:
+        for u in users_to_fix:
+            u.username = u.email.split('@')[0]
+        db.session.commit()
+        print(f"✅ {len(users_to_fix)} User-Profile migriert (Username gesetzt).")
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -51,14 +60,19 @@ def register():
         return redirect(url_for("index"))
     if request.method == "POST":
         email = request.form.get("email")
+        username = request.form.get("username")
         password = request.form.get("password")
+        
         if User.query.filter_by(email=email).first():
             flash("Email bereits registriert.")
+            return redirect(url_for("register"))
+        if User.query.filter_by(username=username).first():
+            flash("Benutzername bereits vergeben.")
             return redirect(url_for("register"))
         
         # Erster User wird automatisch Admin
         is_first = User.query.count() == 0
-        user = User(email=email, is_admin=is_first)
+        user = User(email=email, username=username, is_admin=is_first)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -156,6 +170,8 @@ def system_status():
         "user": {
             "id": current_user.id,
             "email": current_user.email,
+            "username": current_user.username,
+            "avatar_url": url_for("serve_avatar", filename=current_user.avatar_file) if current_user.avatar_file else None,
             "is_admin": current_user.is_admin
         },
         "capabilities": user_caps,
@@ -190,16 +206,69 @@ def get_user_profile():
     chars = generator.list_characters(current_user.id)
     history = generator.list_prompt_history(current_user.id)
     
+    prompts_count = len(history)
+    
+    # Ranking Logik
+    if prompts_count >= 200:
+        rank = "Master"; badge = "💎"
+    elif prompts_count >= 50:
+        rank = "Prompt Crafter"; badge = "🥇"
+    elif prompts_count >= 10:
+        rank = "Apprentice"; badge = "🥈"
+    else:
+        rank = "Novice"; badge = "🥉"
+    
     return jsonify({
         "ok": True,
         "email": current_user.email,
+        "username": current_user.username,
         "is_admin": current_user.is_admin,
+        "avatar_url": url_for("serve_avatar", filename=current_user.avatar_file) if current_user.avatar_file else None,
         "capabilities": current_user.get_capabilities(),
+        "rank": rank,
+        "badge": badge,
         "stats": {
             "characters_count": len(chars),
-            "prompts_count": len(history)
+            "prompts_count": prompts_count
         }
     })
+
+@app.route("/api/user/avatar", methods=["POST"])
+@login_required
+def upload_avatar():
+    if "avatar" not in request.files:
+        return jsonify({"ok": False, "error": "Kein Bild hochgeladen"}), 400
+    
+    file = request.files["avatar"]
+    if not file or not file.filename:
+        return jsonify({"ok": False, "error": "Ungültige Datei"}), 400
+
+    try:
+        # Image Processing mit Pillow
+        img = Image.open(file.stream)
+        
+        # In Quadrat schneiden und auf 256x256 skalieren
+        img = ImageOps.fit(img, (256, 256), Image.Resampling.LANCZOS)
+        
+        # Als WebP speichern
+        avatar_dir = os.path.join(os.environ.get("DATA_DIR", "data"), "avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
+        
+        filename = f"user_{current_user.id}.webp"
+        path = os.path.join(avatar_dir, filename)
+        img.save(path, "WEBP", quality=85)
+        
+        current_user.avatar_file = filename
+        db.session.commit()
+        
+        return jsonify({"ok": True, "avatar_url": url_for("serve_avatar", filename=filename)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Verarbeitungsfehler: {str(e)}"}), 500
+
+@app.route("/avatars/<filename>")
+def serve_avatar(filename):
+    avatar_dir = os.path.join(os.environ.get("DATA_DIR", "data"), "avatars")
+    return send_file(os.path.join(avatar_dir, filename))
 
 @app.route("/api/user/change-password", methods=["POST"])
 @login_required

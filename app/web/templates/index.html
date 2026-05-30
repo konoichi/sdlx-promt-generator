@@ -99,6 +99,11 @@ body{font-family:var(--display);background:var(--bg);color:var(--ink);height:100
 .stats-value{display:block;font-size:22px;font-weight:700;color:var(--accent);margin-bottom:4px}
 .stats-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 
+/* Badge Styles */
+.profile-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:var(--accent-dim);border:1px solid var(--accent-dark);margin-top:4px}
+.avatar-hint{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);color:white;font-size:8px;padding:2px 0;text-align:center;opacity:0;transition:opacity .2s}
+.user-profile-avatar:hover .avatar-hint{opacity:1}
+
 /* User profile card (placeholder) */
 .user-profile-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
 .user-profile-avatar{width:40px;height:40px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent-dark);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent);flex-shrink:0}
@@ -752,12 +757,19 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="sp-body">
     
     <!-- Profile Card -->
-    <div class="user-profile-card" style="margin-bottom:20px">
-      <div class="user-profile-avatar" id="profile-avatar-large">?</div>
-      <div class="user-profile-info">
-        <div class="user-profile-name" id="profile-email-display">E-Mail Adresse</div>
-        <div class="user-profile-role" id="profile-role-display">Benutzer-Rolle</div>
+    <div class="user-profile-card" style="margin-bottom:20px;position:relative">
+      <div class="user-profile-avatar" id="profile-avatar-large" style="width:60px;height:60px;font-size:24px;cursor:pointer;overflow:hidden;position:relative" onclick="triggerAvatarUpload()">
+        <span>?</span>
+        <div class="avatar-hint">UPLOAD</div>
       </div>
+      <div class="user-profile-info">
+        <div class="user-profile-name" id="profile-username-display" style="font-size:16px">Username</div>
+        <div class="profile-badge">
+            <span id="profile-badge-icon">🥉</span> <span id="profile-rank-name" style="font-weight:600;font-size:11px">Novice</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px" id="profile-email-display">email@example.com</div>
+      </div>
+      <input type="file" id="avatar-upload-input" style="display:none" accept="image/*" onchange="onAvatarFileSelected()">
     </div>
 
     <!-- Statistics -->
@@ -1542,15 +1554,51 @@ async function loadProfileData() {
   const result = await res.json();
   if (!result.ok) return;
   
+  // Profile Card
   document.getElementById('profile-email-display').textContent = result.email;
-  document.getElementById('profile-role-display').textContent = result.is_admin ? 'Administrator' : 'Benutzer';
-  document.getElementById('profile-avatar-large').textContent = result.email.charAt(0).toUpperCase();
+  document.getElementById('profile-username-display').textContent = result.username || result.email.split('@')[0];
+  document.getElementById('profile-rank-name').textContent = result.rank;
+  document.getElementById('profile-badge-icon').textContent = result.badge;
   
+  const avatarLarge = document.getElementById('profile-avatar-large');
+  if (result.avatar_url) {
+    avatarLarge.innerHTML = `<img src="${result.avatar_url}" style="width:100%;height:100%;object-fit:cover">`;
+  } else {
+    avatarLarge.textContent = (result.username || result.email).charAt(0).toUpperCase();
+  }
+  
+  // Stats
   document.getElementById('stats-chars-count').textContent = result.stats.characters_count;
   document.getElementById('stats-prompts-count').textContent = result.stats.prompts_count;
   
-  // Addon Liste rendern (nutzt die globale systemStatus, falls aktuell)
   renderAddonList();
+}
+
+function triggerAvatarUpload() {
+  document.getElementById('avatar-upload-input').click();
+}
+
+async function onAvatarFileSelected() {
+  const input = document.getElementById('avatar-upload-input');
+  if (!input.files || !input.files[0]) return;
+  
+  const formData = new FormData();
+  formData.append('avatar', input.files[0]);
+  
+  showToast('Lade Avatar hoch…');
+  const res = await fetch('/api/user/avatar', {
+    method: 'POST',
+    body: formData
+  });
+  
+  const result = await res.json();
+  if (res.ok) {
+    showToast('Avatar aktualisiert!');
+    await loadProfileData();
+    await loadSystemStatus(); // Topbar aktualisieren
+  } else {
+    showToast(result.error || 'Fehler beim Upload');
+  }
 }
 
 async function changePassword() {
@@ -1685,7 +1733,12 @@ async function loadSystemStatus() {
 
 function applyCapabilities() {
   if (systemStatus.user) {
-    document.getElementById('user-email-display').textContent = systemStatus.user.email;
+    const avatar = document.getElementById('user-avatar');
+    if (systemStatus.user.avatar_url) {
+      avatar.innerHTML = `<img src="${systemStatus.user.avatar_url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    } else {
+      avatar.textContent = (systemStatus.user.username || systemStatus.user.email).charAt(0).toUpperCase();
+    }
   }
   
   const hasModelHub = systemStatus.capabilities.includes('premium_model_hub') || systemStatus.capabilities.includes('all');
