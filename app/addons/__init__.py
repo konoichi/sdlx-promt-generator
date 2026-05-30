@@ -30,7 +30,6 @@ def list_all_installed_addons(user_capabilities: list[str], is_admin: bool = Fal
         req_key = a.required_feature_key
         is_active = not req_key or is_feature_unlocked(req_key, user_capabilities, is_admin)
         addons.append({
-...
             "id": a.id,
             "name": a.name,
             "type": a.__class__.__name__,
