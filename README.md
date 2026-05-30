@@ -3,28 +3,27 @@
 Flask-basierter lokaler Prompt-Generator für SDXL Character-Design.
 Hexagonale Architektur — LLM-Anbieter einfach erweiterbar.
 
-## Setup
+## Lokaler Start
 
 ```bash
-# 1. Virtuelle Umgebung erstellen und aktivieren
-python -m venv .venv
-source .venv/bin/activate        # Mac/Linux
-# .venv\Scripts\activate         # Windows
+# Setup einmalig ausführen
+make setup
 
-# 2. Abhängigkeiten installieren
-pip install -r requirements.txt
-
-# 3. Konfiguration anlegen
-cp .env.example .env
-# .env öffnen und ANTHROPIC_API_KEY eintragen
-
-# 4. Starten
-python run.py
+# App starten
+make start
 ```
 
 Browser öffnen: http://127.0.0.1:5000
 
-Venv verlassen: `deactivate`
+Manuell geht es weiterhin so:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python run.py
+```
 
 > Die `.venv/`-Ordner nie ins ZIP oder Git packen — sie enthält nur installierte Pakete und ist immer neu generierbar mit `pip install -r requirements.txt`.
 
@@ -92,3 +91,61 @@ Characters und Prompt-Verlauf werden in `data/` als JSON gespeichert:
 - `data/prompt_history.json`
 
 Backup: den `data/`-Ordner kopieren.
+
+---
+
+## Container Deployment
+
+```bash
+# Konfiguration anlegen, falls noch nicht vorhanden
+make env
+
+# API-Keys und Provider in .env setzen
+
+# Container bauen und starten
+make dev
+```
+
+App öffnen: http://127.0.0.1:5000
+
+Lokales Ollama auf dem Host ist im Container standardmäßig über
+`http://host.docker.internal:11434` erreichbar.
+
+### Make Targets
+
+```bash
+make help     # verfügbare Targets anzeigen
+make check    # Syntax- und Compose-Check
+make build    # Container-Image bauen
+make up       # Container starten
+make dev      # bauen und starten
+make ps       # Status anzeigen
+make logs     # Logs verfolgen
+make shell    # Shell im Container
+make health   # Healthcheck
+make down     # stoppen
+```
+
+Direkte Docker-Compose-Befehle:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f app
+docker compose down
+```
+
+Persistente Daten liegen weiterhin lokal in `data/` und werden nach `/app/data`
+in den Container gemountet.
+
+Optional einen anderen Host-Port verwenden:
+
+```bash
+APP_PORT=8080 docker compose up -d
+```
+
+Optional einen anderen Ollama-Host für den Container verwenden:
+
+```bash
+CONTAINER_OLLAMA_LOCAL_HOST=http://ollama.example:11434 docker compose up -d
+```

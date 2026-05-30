@@ -25,6 +25,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/health")
+def health():
+    return jsonify({"ok": True})
+
+
 @app.route("/guide")
 def guide():
     import re
