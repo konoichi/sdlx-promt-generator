@@ -113,18 +113,19 @@ _ZONES_234 = """zone2_face — Face and Identity (consistency core)
 Order: base (gender, age, ethnicity) → eyes (WITH weight!) → bone structure → nose → hair → expression → special features.
 Eye color and distinctive facial features ALWAYS with appropriate weight.
 
-zone3_body — Body (adapt strictly to Shot Type from character data)
-- portrait: one line max — shoulders and décolleté only; omit legs, hips, full figure
-- upper body shot: torso, chest, shoulders, upper arms; include breast_size and body_hair tokens if provided
-- full body shot: complete figure — build, posture, hips, legs; include breast_size and body_hair tokens if provided
+zone3_body — Body and Clothing (adapt strictly to Shot Type from character data)
+- portrait: one line max — shoulders and décolleté only; omit legs, hips, full figure; mention clothing if visible on shoulders (e.g., collar, straps)
+- upper body shot: torso, chest, shoulders, upper arms; include breast_size, body_hair, and detailed CLOTHING tokens if provided
+- full body shot: complete figure — build, posture, hips, legs; include breast_size, body_hair, and detailed CLOTHING tokens if provided
 
-zone4_context — Composition and Light
-Lighting → background → framing token that matches the Shot Type → sharp focus on eyes.
+zone4_context — Scene, Composition and Light
+Lighting → Scene/Environment Details (if provided) → framing token that matches the Shot Type → sharp focus on eyes.
 Framing tokens per shot type:
 - portrait: "close-up portrait, head and shoulders"
 - upper body shot: "upper body shot, from waist up"
 - full body shot: "full body shot, full length"
-Always end with "sharp focus on eyes" as the last token."""
+Always end with "sharp focus on eyes" as the last token. If scene/environment is specified, describe it vividly, ensuring it complements the character's lighting and style.
+"""
 
 
 _SYSTEM_SDXL = f"""You are an expert Stable Diffusion XL prompt engineer with deep knowledge of SDXL architecture, CLIP tokenization, and character consistency workflows.

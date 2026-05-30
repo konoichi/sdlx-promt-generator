@@ -58,6 +58,12 @@ class Character:
     body_hair: list[str] = field(default_factory=list)   # chest hair | armpit hair | leg hair | hairy
     body_marks: list[str] = field(default_factory=list)
 
+    # Kleidung & Szene
+    clothing: str = ""
+    clothing_standard: str = ""
+    scene: str = ""
+    scene_standard: str = ""
+
     # Kontext
     expression: str = "neutral expression, lips slightly parted"
     lighting: str = "soft studio lighting, light grey background"
@@ -138,6 +144,20 @@ class Character:
             parts.append(f"Pubic Hair Style: {self.pubic_hair}")
         if self.body_hair:
             parts.append(f"Body Hair: {', '.join(self.body_hair)}")
+        
+        # Kleidung & Szene
+        clothing_parts = []
+        if self.clothing_standard: clothing_parts.append(self.clothing_standard)
+        if self.clothing: clothing_parts.append(self.clothing)
+        if clothing_parts:
+            parts.append(f"Clothing: {', '.join(clothing_parts)}")
+
+        scene_parts = []
+        if self.scene_standard: scene_parts.append(self.scene_standard)
+        if self.scene: scene_parts.append(self.scene)
+        if scene_parts:
+            parts.append(f"Scene/Environment: {', '.join(scene_parts)}")
+
         parts += [
             f"Körpermerkmale: {', '.join(self.body_marks) if self.body_marks else 'keine'}",
             f"Mimik: {self.expression}",

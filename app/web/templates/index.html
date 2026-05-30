@@ -590,6 +590,19 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="section-label">Körpermerkmale <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--hint);margin-left:4px">mehrere möglich</span></div>
       <div class="tags-row" id="body-marks-tags"></div>
 
+      <!-- Kleidung & Szene -->
+      <div class="section-label">Kleidung</div>
+      <div class="tags-row" id="clothing-standard-tags"></div>
+      <div class="field" style="margin-top:10px">
+        <input type="text" id="clothing-details" placeholder="Kleidungs-Details (z.B. red silk dress, tactical gear, oversized hoodie...)">
+      </div>
+
+      <div class="section-label">Umgebung</div>
+      <div class="tags-row" id="scene-standard-tags"></div>
+      <div class="field" style="margin-top:10px">
+        <input type="text" id="scene-details" placeholder="Umgebungs-Details (z.B. rainy street, cyberpunk city, sunny beach...)">
+      </div>
+
       <!-- Mimik & Lighting -->
       <div class="section-label">Mimik</div>
       <div class="tags-row" id="expression-tags"></div>
@@ -836,6 +849,8 @@ let selShotType   = 'portrait';
 let selEthnicity  = 'European features';
 let selExpression = 'neutral expression, lips slightly parted';
 let selLighting   = 'soft studio lighting, light grey background';
+let selClothingStandard = '';
+let selSceneStandard = '';
 let selBodyHair   = new Set();
 let selBodyMarks  = new Set();
 let lastResult    = null;
@@ -881,6 +896,19 @@ const bodyMarksOpts = [
   {l:'Piercings',v:'subtle ear piercings'},{l:'Nasenring',v:'small nose ring'},
   {l:'Vitiligo',v:'vitiligo patches on skin'},{l:'Leberfleck',v:'distinctive mole on cheek'},
   {l:'Ausgeprägte Adern',v:'visible veins on forearms'},{l:'Dehnungsstreifen',v:'stretch marks'},
+];
+const clothingOpts = [
+  {l:'Casual',v:'casual clothing'},{l:'Business',v:'business attire'},
+  {l:'Elegant',v:'elegant outfit'},{l:'Sporty',v:'sporty clothing'},
+  {l:'Tactical',v:'tactical gear'},{l:'Cyberpunk',v:'cyberpunk outfit'},
+  {l:'Fantasy',v:'fantasy armor'},{l:'Lingerie',v:'lingerie'},
+  {l:'Nude',v:'naked'},
+];
+const sceneOpts = [
+  {l:'Studio',v:'photography studio'},{l:'Urban',v:'urban city street'},
+  {l:'Natur',v:'lush nature park'},{l:'Wohnung',v:'modern apartment interior'},
+  {l:'Wald',v:'dense forest'},{l:'Strand',v:'tropical beach'},
+  {l:'Cyberpunk',v:'futuristic cyberpunk city'},{l:'Büro',v:'corporate office'},
 ];
 
 // ─── Tag Builder ──────────────────────────────────────────────────────────
@@ -990,6 +1018,10 @@ function getFormData() {
     body_marks: [...selBodyMarks],
     expression: selExpression,
     lighting: selLighting,
+    clothing: document.getElementById('clothing-details').value,
+    clothing_standard: selClothingStandard,
+    scene: document.getElementById('scene-details').value,
+    scene_standard: selSceneStandard,
     shot_type: selShotType,
     notes: document.getElementById('notes').value,
     model_family: document.getElementById('model-family').value,
@@ -1037,6 +1069,10 @@ function fillForm(char) {
   selEthnicity  = char.ethnicity  || 'European features';
   selExpression = char.expression || 'neutral expression, lips slightly parted';
   selLighting   = char.lighting   || 'soft studio lighting, light grey background';
+  selClothingStandard = char.clothing_standard || '';
+  selSceneStandard    = char.scene_standard || '';
+  document.getElementById('clothing-details').value = char.clothing || '';
+  document.getElementById('scene-details').value    = char.scene || '';
   selBodyHair   = new Set(char.body_hair || []);
   selBodyMarks  = new Set(char.body_marks || []);
 
@@ -1049,6 +1085,8 @@ function fillForm(char) {
   buildSingle('ethnicity-tags', ethnicityOpts, () => selEthnicity, v => selEthnicity = v);
   buildSingle('expression-tags', expressionOpts, () => selExpression, v => selExpression = v);
   buildSingle('lighting-tags', lightingOpts, () => selLighting, v => selLighting = v);
+  buildSingle('clothing-standard-tags', clothingOpts, () => selClothingStandard, v => selClothingStandard = v);
+  buildSingle('scene-standard-tags', sceneOpts, () => selSceneStandard, v => selSceneStandard = v);
   buildMulti('body-hair-tags', bodyHairOpts, selBodyHair);
   buildMulti('body-marks-tags', bodyMarksOpts, selBodyMarks);
 
@@ -1303,6 +1341,10 @@ function newCharacter() {
   selEthnicity  = 'European features';
   selExpression = 'neutral expression, lips slightly parted';
   selLighting   = 'soft studio lighting, light grey background';
+  selClothingStandard = '';
+  selSceneStandard = '';
+  document.getElementById('clothing-details').value = '';
+  document.getElementById('scene-details').value = '';
   selBodyHair   = new Set();
   selBodyMarks.clear();
   document.getElementById('breast-size').value = '';
@@ -1312,6 +1354,8 @@ function newCharacter() {
   buildSingle('ethnicity-tags',  ethnicityOpts, () => selEthnicity,  v => selEthnicity = v);
   buildSingle('expression-tags', expressionOpts, () => selExpression, v => selExpression = v);
   buildSingle('lighting-tags',   lightingOpts,  () => selLighting,   v => selLighting = v);
+  buildSingle('clothing-standard-tags', clothingOpts, () => selClothingStandard, v => selClothingStandard = v);
+  buildSingle('scene-standard-tags', sceneOpts, () => selSceneStandard, v => selSceneStandard = v);
   buildMulti('body-hair-tags',  bodyHairOpts,  selBodyHair);
   buildMulti('body-marks-tags', bodyMarksOpts, selBodyMarks);
   // Reset result + thinking
@@ -1936,6 +1980,8 @@ updateCheckpointHint();
 setLang(_lang);
 loadProviders();
 loadImageBackends();
+buildSingle('clothing-standard-tags', clothingOpts, () => selClothingStandard, v => selClothingStandard = v);
+buildSingle('scene-standard-tags', sceneOpts, () => selSceneStandard, v => selSceneStandard = v);
 loadCharacters();
 </script>
 </body>
