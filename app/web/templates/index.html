@@ -560,30 +560,40 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         </div>
       </div>
 
-      <!-- Frau-spezifische Felder -->
-      <div id="breast-size-row" style="display:none">
-        <div class="form-grid">
-          <div class="field">
-            <label>Oberweite</label>
-            <select id="breast-size">
-              <option value="">– nicht angegeben –</option>
-              <option value="small breasts">Klein</option>
-              <option value="medium breasts">Mittel</option>
-              <option value="large breasts">Groß</option>
-              <option value="huge breasts">Sehr groß</option>
-            </select>
+      <!-- Frau-spezifische Felder (NSFW Gated) -->
+      <div id="nsfw-ui-group" style="display:none">
+        <div class="section-label">Anatomische Details (NSFW)</div>
+        <div id="breast-size-row" style="display:none">
+          <div class="form-grid">
+            <div class="field">
+              <label>Oberweite</label>
+              <select id="breast-size">
+                <option value="">– nicht angegeben –</option>
+                <option value="small breasts">Klein</option>
+                <option value="medium breasts">Mittel</option>
+                <option value="large breasts">Groß</option>
+                <option value="huge breasts">Sehr groß</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Schambereich</label>
+              <select id="pubic-hair">
+                <option value="">– nicht angegeben –</option>
+                <option value="no pubic hair">Rasiert</option>
+                <option value="pubic stubble">Stoppeln</option>
+                <option value="trimmed pubic hair">Getrimmt</option>
+                <option value="landing strip">Streifen</option>
+                <option value="pubic hair">Naturel</option>
+              </select>
+            </div>
           </div>
-          <div class="field">
-            <label>Schambereich</label>
-            <select id="pubic-hair">
-              <option value="">– nicht angegeben –</option>
-              <option value="no pubic hair">Rasiert</option>
-              <option value="pubic stubble">Stoppeln</option>
-              <option value="trimmed pubic hair">Getrimmt</option>
-              <option value="landing strip">Streifen</option>
-              <option value="pubic hair">Naturel</option>
-            </select>
-          </div>
+        </div>
+        
+        <div class="field" style="margin-top:12px">
+          <label class="checkbox-container" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+            <input type="checkbox" id="allow-nsfw-checkbox" style="width:auto">
+            <span>Explizite Inhalte (NSFW) im Prompt erlauben</span>
+          </label>
         </div>
       </div>
 
@@ -927,8 +937,7 @@ const clothingOpts = [
   {l:'Casual',v:'casual clothing'},{l:'Business',v:'business attire'},
   {l:'Elegant',v:'elegant outfit'},{l:'Sporty',v:'sporty clothing'},
   {l:'Tactical',v:'tactical gear'},{l:'Cyberpunk',v:'cyberpunk outfit'},
-  {l:'Fantasy',v:'fantasy armor'},{l:'Lingerie',v:'lingerie'},
-  {l:'Nude',v:'naked'},
+  {l:'Fantasy',v:'fantasy armor'},
 ];
 const sceneOpts = [
   {l:'Studio',v:'photography studio'},{l:'Urban',v:'urban city street'},
@@ -1049,6 +1058,7 @@ function getFormData() {
     scene: document.getElementById('scene-details').value,
     scene_standard: selSceneStandard,
     shot_type: selShotType,
+    allow_nsfw: document.getElementById('allow-nsfw-checkbox').checked,
     notes: document.getElementById('notes').value,
     model_family: document.getElementById('model-family').value,
     pony_source: document.getElementById('pony-source').value,
@@ -1105,6 +1115,7 @@ function fillForm(char) {
   const isWoman = (char.gender || 'woman') === 'woman';
   document.getElementById('breast-size').value = char.breast_size || '';
   document.getElementById('pubic-hair').value  = char.pubic_hair  || '';
+  document.getElementById('allow-nsfw-checkbox').checked = char.allow_nsfw || false;
   document.getElementById('breast-size-row').style.display = isWoman ? 'block' : 'none';
 
   buildSingle('shot-type-tags', shotTypeOpts, () => selShotType, v => selShotType = v);
@@ -1375,6 +1386,7 @@ function newCharacter() {
   selBodyMarks.clear();
   document.getElementById('breast-size').value = '';
   document.getElementById('pubic-hair').value  = '';
+  document.getElementById('allow-nsfw-checkbox').checked = false;
   document.getElementById('breast-size-row').style.display = 'block';
   buildSingle('shot-type-tags',  shotTypeOpts,  () => selShotType,   v => selShotType = v);
   buildSingle('ethnicity-tags',  ethnicityOpts, () => selEthnicity,  v => selEthnicity = v);
@@ -1586,6 +1598,22 @@ async function loadSystemStatus() {
 function applyCapabilities() {
   const hasModelHub = systemStatus.capabilities.includes('premium_model_hub') || systemStatus.capabilities.includes('all');
   document.getElementById('model-info-btn').style.display = hasModelHub ? 'block' : 'none';
+  
+  const hasNSFW = systemStatus.capabilities.includes('nsfw_content') || systemStatus.capabilities.includes('all');
+  document.getElementById('nsfw-ui-group').style.display = hasNSFW ? 'block' : 'none';
+  
+  // Kleidung-Tags aktualisieren (NSFW Optionen hinzufügen falls freigeschaltet)
+  const baseClothing = [
+    {l:'Casual',v:'casual clothing'},{l:'Business',v:'business attire'},
+    {l:'Elegant',v:'elegant outfit'},{l:'Sporty',v:'sporty clothing'},
+    {l:'Tactical',v:'tactical gear'},{l:'Cyberpunk',v:'cyberpunk outfit'},
+    {l:'Fantasy',v:'fantasy armor'},
+  ];
+  if (hasNSFW) {
+    baseClothing.push({l:'Lingerie',v:'lingerie'}, {l:'Nude',v:'naked'});
+  }
+  buildSingle('clothing-standard-tags', baseClothing, () => selClothingStandard, v => selClothingStandard = v);
+
   renderAddonList();
 }
 

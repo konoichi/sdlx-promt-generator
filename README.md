@@ -94,6 +94,12 @@ Backup: den `data/`-Ordner kopieren.
 
 ---
 
+## Modulare Architektur (Addons)
+
+Die Anwendung verfolgt eine strikte Trennung zwischen Kernfunktionen und optionalen Erweiterungen (z.B. Civitai-Integration, NSFW-Content). Eine detaillierte Übersicht findest du in der [ADDONS.md](ADDONS.md).
+
+---
+
 ## Container Deployment
 
 ```bash

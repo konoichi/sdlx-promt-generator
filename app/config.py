@@ -109,3 +109,10 @@ try:
     register_addon(ModelHubProvider())
 except ImportError:
     pass
+
+# Versuch, die NSFW Expansion zu laden
+try:
+    from app.addons.nsfw_expansion.provider import NSFWExpansionAddon
+    register_addon(NSFWExpansionAddon())
+except ImportError:
+    pass

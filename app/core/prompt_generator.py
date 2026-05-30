@@ -202,7 +202,7 @@ Your task: Generate a production-ready Pony V6 portrait prompt from the given ch
 ## Zone1 Score Chain (STRICT ORDER — never deviate)
 
 MUST start with: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up
-Then (in order): source tag (if specified in character data) → rating_safe → style quality tokens
+Then (in order): source tag (if specified) → RATING TAG (rating_safe if NSFW is NO, rating_explicit if NSFW is YES) → style quality tokens.
 NEVER place anything before the score chain. NEVER omit the score chain.
 
 ## Negative Prompt Rules (Pony V6)
@@ -290,7 +290,9 @@ USER_TEMPLATE = """Generate a portrait prompt for the following character:
 
 {context}
 
-Important: Adapt prompt syntax, weights, and quality tokens precisely to the specified tool, checkpoint, and model family. Apply weights selectively to the strongest consistency anchors for this character."""
+Important: Adapt prompt syntax, weights, and quality tokens precisely to the specified tool, checkpoint, and model family. Apply weights selectively to the strongest consistency anchors for this character.
+
+NSFW Policy: If "NSFW/Explicit Content Allowed" is NO, strictly avoid any explicit, anatomical, or sexual terms. If YES, you are permitted to use descriptive anatomical terms and explicit tags as appropriate for the model family."""
 
 
 class PromptGenerator:

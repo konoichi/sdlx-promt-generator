@@ -74,6 +74,7 @@ class Character:
     # Modell-Familie
     model_family: str = "sdxl"    # sdxl | pony_v6 | illustrious
     pony_source: str = ""          # source_anime | source_cartoon | source_furry | source_pony | ""
+    allow_nsfw: bool = False
 
     # Tool & Checkpoint
     sd_tool: str = "ComfyUI"
@@ -127,6 +128,9 @@ class Character:
         if self.model_family == "pony_v6":
             source = self.pony_source or "none (photorealistic checkpoint — omit source tag)"
             parts.append(f"Pony Source Tag: {source}")
+        
+        parts.append(f"NSFW/Explicit Content Allowed: {'YES' if self.allow_nsfw else 'NO'}")
+        
         parts += [
             f"Shot Type: {self.shot_type}",
             "",
