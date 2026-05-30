@@ -15,6 +15,8 @@ from app.config import (
     get_providers_status,
     get_provider,
 )
+from app.core.capabilities import get_unlocked_features, verify_and_unlock
+from app.addons import list_active_addons, list_all_installed_addons
 from app.core.character import Character
 from app.core.ports import ImageGenerationRequest
 
@@ -78,6 +80,57 @@ def set_image_backend_host(backend_id):
     backend.set_host(host)
     status = backend.status()
     return jsonify({"ok": True, **status.__dict__})
+
+
+@app.route("/api/system/status")
+def system_status():
+    return jsonify({
+        "capabilities": get_unlocked_features(),
+        "addons": list_all_installed_addons()
+    })
+
+
+@app.route("/api/system/unlock", methods=["POST"])
+def system_unlock():
+    key = request.json.get("key")
+    if not key:
+        return jsonify({"ok": False, "error": "Lizenzschlüssel fehlt"}), 400
+    
+    success, message, new_features = verify_and_unlock(key)
+    if success:
+        # Nach dem Unlock müssen wir die Addons in der Registry neu "aktivieren"
+        # Das machen wir hier einfach, indem wir config neu laden oder die Registry triggern
+        import app.config
+        # Die register_addon Logik in config wird erneut ausgeführt
+        from app.addons.model_hub.provider import ModelHubProvider
+        from app.addons import register_addon
+        register_addon(ModelHubProvider())
+        
+        return jsonify({"ok": True, "message": message, "features": new_features})
+    
+    return jsonify({"ok": False, "error": message}), 403
+
+
+@app.route("/api/addons/model-hub/info")
+def get_model_hub_info():
+    model_name = request.args.get("name")
+    model_type = request.args.get("type", "checkpoint")
+    if not model_name:
+        return jsonify({"ok": False, "error": "Name fehlt"}), 400
+    
+    from app.addons import get_addons_by_type
+    from app.core.addon_ports import ModelMetadataProvider
+    
+    providers = get_addons_by_type(ModelMetadataProvider)
+    if not providers:
+        return jsonify({"ok": False, "error": "Model Hub Addon nicht aktiv oder nicht freigeschaltet"}), 403
+    
+    # Wir nehmen den ersten verfügbaren Provider
+    info = providers[0].get_model_info(model_name, model_type)
+    if not info:
+        return jsonify({"ok": False, "error": "Modell bei Civitai nicht gefunden"}), 404
+        
+    return jsonify({"ok": True, "data": info})
 
 
 # ─── Prompt generieren ─────────────────────────────────────────────────────

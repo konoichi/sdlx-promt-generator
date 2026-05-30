@@ -358,7 +358,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         </div>
         <div class="field">
           <label>Checkpoint</label>
-          <select id="image-model-select"></select>
+          <div style="display:flex;gap:4px">
+            <select id="image-model-select" style="flex:1"></select>
+            <button id="model-info-btn" class="btn btn-secondary" style="padding:0 8px;display:none" onclick="fetchModelInfo()" title="Infos von Civitai laden">
+              <i class="fa fa-info-circle"></i>
+            </button>
+          </div>
         </div>
         <div class="field">
           <label>Größe</label>
@@ -825,6 +830,26 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div id="comfyui-status" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)"></div>
     </div>
 
+    <!-- Addons & Erweiterungen -->
+    <div class="sp-section">
+      <div class="section-label">Addons & Erweiterungen</div>
+      <div class="info-box" style="font-size:12px;margin-bottom:12px">
+        Hier siehst du installierte Module. Einige erfordern eine Freischaltung.
+      </div>
+      
+      <div id="addon-list-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        <!-- Addons werden hier gerendert -->
+      </div>
+
+      <div class="settings-row">
+        <div class="field" style="flex:1">
+          <label>Freischaltcode / Lizenz</label>
+          <input type="text" id="license-key-input" placeholder="BETA-TESTER, PRO-2026...">
+        </div>
+        <button class="btn btn-secondary" onclick="unlockFeature()">Freischalten</button>
+      </div>
+    </div>
+
     <!-- Dev info -->
     <div class="sp-section">
       <div class="section-label">Entwickler</div>
@@ -856,6 +881,7 @@ let selBodyMarks  = new Set();
 let lastResult    = null;
 let currentCharId = null;
 let imageBackends = [];
+let systemStatus  = { capabilities: [], addons: [] };
 
 // ─── Option Data ──────────────────────────────────────────────────────────
 const ethnicityOpts = [
@@ -1549,6 +1575,90 @@ async function testImageBackend(backendId, hostInputId, statusId) {
   }
 }
 
+async function loadSystemStatus() {
+  const res = await fetch('/api/system/status');
+  systemStatus = await res.json();
+  console.log('System Status loaded:', systemStatus);
+  // Hier können wir später UI-Elemente ein/ausblenden
+  applyCapabilities();
+}
+
+function applyCapabilities() {
+  const hasModelHub = systemStatus.capabilities.includes('premium_model_hub') || systemStatus.capabilities.includes('all');
+  document.getElementById('model-info-btn').style.display = hasModelHub ? 'block' : 'none';
+  renderAddonList();
+}
+
+function renderAddonList() {
+  const container = document.getElementById('addon-list-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  if (!systemStatus.addons.length) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--muted)">Keine Addons installiert.</div>';
+    return;
+  }
+  
+  systemStatus.addons.forEach(a => {
+    const item = document.createElement('div');
+    item.style = 'display:flex;justify-content:space-between;align-items:center;background:var(--surface);padding:8px 12px;border-radius:8px;border:1px solid var(--border)';
+    
+    const statusBadge = a.is_active 
+      ? '<span style="font-size:10px;background:var(--accent-dim);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700">AKTIV</span>'
+      : `<span style="font-size:10px;background:rgba(224,85,85,.12);color:var(--danger);padding:2px 6px;border-radius:4px;font-weight:700">GESPERRT (${a.required_key})</span>`;
+    
+    item.innerHTML = `
+      <div style="display:flex;flex-direction:column">
+        <span style="font-size:13px;font-weight:600">${a.name}</span>
+        <span style="font-size:11px;color:var(--muted)">${a.id} · ${a.type}</span>
+      </div>
+      ${statusBadge}
+    `;
+    container.appendChild(item);
+  });
+}
+
+async function unlockFeature() {
+  const key = document.getElementById('license-key-input').value;
+  if (!key) return;
+  
+  const res = await fetch('/api/system/unlock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({key}),
+  });
+  
+  const result = await res.json();
+  if (res.ok) {
+    showToast(result.message);
+    document.getElementById('license-key-input').value = '';
+    await loadSystemStatus();
+  } else {
+    showToast(result.error || 'Fehler beim Freischalten');
+  }
+}
+
+async function fetchModelInfo() {
+  const modelName = document.getElementById('image-model-select').value;
+  if (!modelName) return;
+  
+  showToast('Suche Infos bei Civitai…');
+  const res = await fetch(`/api/addons/model-hub/info?name=${encodeURIComponent(modelName)}`);
+  const result = await res.json();
+  
+  if (!res.ok || !result.ok) {
+    showToast(result.error || 'Fehler beim Laden der Infos');
+    return;
+  }
+  
+  const data = result.data;
+  let msg = `Modell: ${data.name}\nTyp: ${data.type}`;
+  if (data.trigger_words && data.trigger_words.length) {
+    msg += `\nTrigger: ${data.trigger_words.join(', ')}`;
+  }
+  alert(msg); // Für den Moment als Alert, später schöneres Modal
+}
+
 // ─── UI Helpers ───────────────────────────────────────────────────────────
 function updateProviderPill() {
   const provSel  = document.getElementById('provider-select');
@@ -1978,6 +2088,7 @@ updateCheckpointHint();
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 setLang(_lang);
+loadSystemStatus();
 loadProviders();
 loadImageBackends();
 buildSingle('clothing-standard-tags', clothingOpts, () => selClothingStandard, v => selClothingStandard = v);
